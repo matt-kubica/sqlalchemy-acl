@@ -39,4 +39,4 @@ Example of usage
 ```
 
 ## ACLQuery
-For now class **ACLQuery** extends **BaseQuery**, but without newly implemented methods or overrides
+For now class **acl.ACLQuery** extends **BaseQuery**, but without newly implemented methods or overrides
