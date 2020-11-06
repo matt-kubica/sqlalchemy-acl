@@ -7,6 +7,10 @@ verify_ssl = true
 
 [packages]
 sqlalchemy = "*"
+flask = "*"
+flask-sqlalchemy = "*"
+flask-marshmallow = "*"
+marshmallow-sqlalchemy = "*"
 
 [requires]
 python_version = "3.8"
