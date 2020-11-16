@@ -29,12 +29,15 @@ class ACL:
 
         def private(self):
             mzero = self._mapper_zero()
-            # get model class
-            Model = mzero.class_
             
-            # actually appending filter here
-            # checking if object id is in the ACL list for given object
-            return self.enable_assertions(False).filter(Model.id.in_(ACL.create_acl(Model)))
+            if mzero:
+                # get model class
+                Model = mzero.class_
+
+                # actually appending filter here
+                # checking if object id is in the ACL list for given object
+                return self.enable_assertions(False).filter(Model.id.in_(ACL.create_acl(Model)))
+            return self
 
 
     # model base configuration
