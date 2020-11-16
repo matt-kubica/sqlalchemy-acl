@@ -29,12 +29,15 @@ class ACL:
 
         def private(self):
             mzero = self._mapper_zero()
-            # get model class
-            Model = mzero.class_
             
-            # actually appending filter here
-            # checking if object id is in the ACL list for given object
-            return self.enable_assertions(False).filter(Model.id.in_(ACL.create_acl(Model)))
+            if mzero:
+                # get model class
+                Model = mzero.class_
+
+                # actually appending filter here
+                # checking if object id is in the ACL list for given object
+                return self.enable_assertions(False).filter(Model.id.in_(ACL.create_acl(Model)))
+            return self
 
 
     # model base configuration
@@ -133,8 +136,8 @@ class ACL:
 
         # get all entries for acl acording to dest_table and user_id
         acls = session.query(cls.ACLModel) \
-            .filter_by(dest_table=model.__tablename__) \
-            .filter(cls.UserModel.id == cls.user_id) \
+            .filter(cls.ACLModel.dest_table == model.__tablename__) \
+            .filter(cls.ACLModel.user_id == cls.user_id) \
             .all()
         
         # retrieve only ids
