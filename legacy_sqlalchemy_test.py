@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from acl import ACL
+from sqlalchemy_acl import ACL
 
 
 # engine configuration

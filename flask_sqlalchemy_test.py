@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 
-from acl import ACL
+from sqlalchemy_acl import ACL
 import os
 
 

@@ -1,4 +1,4 @@
-from exceptions import UserNotFromUserModel, EngineNotProvided, ACLModelsNotProvided
+from .exceptions import UserNotFromUserModel, EngineNotProvided, ACLModelsNotProvided
 
 from sqlalchemy.orm.query import Query as BaseQuery
 from sqlalchemy import Column, Integer, String, ForeignKey
