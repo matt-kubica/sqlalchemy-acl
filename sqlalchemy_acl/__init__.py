@@ -133,8 +133,8 @@ class ACL:
 
         # get all entries for acl acording to dest_table and user_id
         acls = session.query(cls.ACLModel) \
-            .filter_by(dest_table=model.__tablename__) \
-            .filter(cls.UserModel.id == cls.user_id) \
+            .filter(cls.ACLModel.dest_table == model.__tablename__) \
+            .filter(cls.ACLModel.user_id == cls.user_id) \
             .all()
         
         # retrieve only ids
