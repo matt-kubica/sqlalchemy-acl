@@ -11,6 +11,8 @@ flask = "*"
 flask-sqlalchemy = "*"
 flask-marshmallow = "*"
 marshmallow-sqlalchemy = "*"
+setuptools = "*"
+wheel = "*"
 
 [requires]
 python_version = "3.8"
