@@ -1,8 +1,11 @@
-class UserNotFromUserModel(Exception):
+class UserNotValid(Exception):
 	pass
 
-class EngineNotProvided(Exception):
+class ACLEntryNotValid(Exception):
 	pass
 
-class ACLModelsNotProvided(Exception):
+class ACLModelsNotValid(Exception):
+	pass
+
+class ListRequired(Exception):
 	pass

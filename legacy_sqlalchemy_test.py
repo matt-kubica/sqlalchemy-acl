@@ -1,9 +1,10 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy_acl import ACL
+
 
 
 # engine configuration
@@ -13,7 +14,7 @@ engine = create_engine('sqlite:///db.sqlite')
 Base = declarative_base()
 
 # session configuration and initialization
-Session = sessionmaker(bind=engine, query_cls=ACL.Query)
+Session = sessionmaker(bind=engine)
 session = Session()
 
 
@@ -40,40 +41,57 @@ class Wage(Base):
 Base.metadata.create_all(bind=engine)
 
 
-
 # main
 if __name__ == '__main__':
 
     # some exemplary db entries - wages, user and acl
-    list = [
-        Wage(id=1, person='Prezio', amount=1000000), 
-        Wage(id=2, person='Praktykantka', amount=1000),
-        Wage(id=3, person='Programista15k', amount=15000),
-
-        ACL.UserModel(id=1, username='admin'),
-        
-        ACL.ACLEntry(user_id=1, dest_table='wages', dest_id=2),
-        ACL.ACLEntry(user_id=1, dest_table='wages', dest_id=3),        
+    dummy_list = [
+        Wage(id=0, person='Prezio', amount=1000000),
+        Wage(id=1, person='Praktykantka', amount=1000),
+        Wage(id=2, person='Programista15k', amount=15000),
+        Wage(id=3, person='Programista10k', amount=10000),
     ]
     
     
     # standard procedure of commiting changes to db
     # IntegrityError is raised when, for example, new object with same id is creating 
     try:
-        session.add_all(list)
+        session.add_all(dummy_list)
         session.commit()
     except IntegrityError as err:
         print('Integrity Error! Rolling back...')
         session.rollback()
 
-    # getting admin user object
-    # quering from users table (defined by ACL.UserModel) is not restricted by ACL
-    admin_user = session.query(ACL.UserModel).filter_by(id=1).scalar()
+    # adding some exemplary users
+    admin_user = ACL.UserModel(id=0, username='admin')
+    some_user1 = ACL.UserModel(id=1, username='some_user1')
+    some_user2 = ACL.UserModel(id=2, username='some_user2')
+    ACL.add_users([admin_user, some_user1, some_user2])
+
+    # adding some exemplary ACL entries
+    # admin has access to all rows of 'wages', some_user1 to rows 1..3 and some_user2 to row 3 only
+    acl_entries = [
+        ACL.ACLModel(id=0, user_id=admin_user.id, dest_table=Wage.__tablename__, dest_id=0),
+        ACL.ACLModel(id=1, user_id=admin_user.id, dest_table=Wage.__tablename__, dest_id=1),
+        ACL.ACLModel(id=2, user_id=admin_user.id, dest_table=Wage.__tablename__, dest_id=2),
+        ACL.ACLModel(id=3, user_id=admin_user.id, dest_table=Wage.__tablename__, dest_id=3),
+
+        ACL.ACLModel(id=4, user_id=some_user1.id, dest_table=Wage.__tablename__, dest_id=1),
+        ACL.ACLModel(id=5, user_id=some_user1.id, dest_table=Wage.__tablename__, dest_id=2),
+        ACL.ACLModel(id=6, user_id=some_user1.id, dest_table=Wage.__tablename__, dest_id=3),
+
+        ACL.ACLModel(id=7, user_id=some_user2.id, dest_table=Wage.__tablename__, dest_id=3),
+    ]
+    ACL.add_entries(acl_entries)
+
 
     # setting user that is about to execute query
     ACL.set_user(admin_user)
+    print(session.query(Wage).all())
 
-    # actual query, we defined in ACL table tha admin_user have access to wage:2 and wage:3
-    wages = session.query(Wage).all()
-    print(wages)
+    ACL.set_user(some_user1)
+    print(session.query(Wage).all())
+
+    ACL.set_user(some_user2)
+    print(session.query(Wage).all())
 
