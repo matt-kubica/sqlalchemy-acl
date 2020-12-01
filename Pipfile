@@ -11,7 +11,7 @@ flask = "*"
 flask-sqlalchemy = "*"
 flask-marshmallow = "*"
 marshmallow-sqlalchemy = "*"
-
+psycopg2 = "*"
 
 [requires]
 python_version = "3.8"
