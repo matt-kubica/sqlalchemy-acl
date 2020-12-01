@@ -4,6 +4,9 @@ class UserNotValid(Exception):
 class ACLEntryNotValid(Exception):
 	pass
 
+class AccessLevelNotValid(Exception):
+	pass
+
 class ACLModelsNotValid(Exception):
 	pass
 

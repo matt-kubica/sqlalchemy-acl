@@ -1,181 +1,163 @@
 from copy import copy
 
-from .exceptions import UserNotValid, ACLModelsNotValid, ListRequired, ACLEntryNotValid
+from .exceptions import ACLModelsNotValid, UserNotValid
+from .models import UserModel, AccessLevelModel, ACLEntryModel
+from .utils import check_users_list, check_entries_list, check_access_levels_list
+from .base import Base
+from .events import intercept_select, intercept_insert
 
 from sqlalchemy import event
-from sqlalchemy import Column, Integer, String, ForeignKey, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.orm import sessionmaker
 
 
-# model base configuration
-Base = declarative_base()
 
-# default user model
-class User(Base):
-    __tablename__ = 'users'
+class AccessLevelBuilder():
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(64), unique=True, nullable=False)
+    # raises ListRequired, ACLEntryNotValid, UserNotValid
+    def __init__(self, acl_entries=None, users=None):
+        if users is None:
+            self.users = []
+        elif check_users_list(users):
+            self.users = users
 
-    def __repr__(self):
-        return '<User {0}:{1}>'.format(self.id, self.username)
+        if acl_entries is None:
+            self.acl_entries = []
+        elif check_entries_list(acl_entries):
+            self.acl_entries = acl_entries
+
+    # raises ListRequired, ACLEntryNotValid
+    def add_alc_entries(self, acl_entries):
+        if check_entries_list(acl_entries): self.acl_entries.extend(acl_entries)
+
+    # raises ListRequired, UserNotValid
+    def add_users(self, users):
+        if check_users_list(users): self.users.extend(users)
+
+    # raises IntegrityError
+    def build(self, description=None):
+        return AccessLevelModel(users=self.users, entries=self.acl_entries, role_description=description)
 
 
-# ACLEntry model
-class ACLEntry(Base):
-    __tablename__ = 'acl'
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    dest_table = Column(String(64), nullable=False)
-    dest_id = Column(Integer, nullable=False)
-    __table_args__ = (UniqueConstraint('user_id', 'dest_table', 'dest_id'),)
-
-    def __repr__(self):
-        return '<ACLEntry {0}:{1} -> {2}:{3}>'.format(
-            self.id,
-            self.user_id,
-            self.dest_table,
-            self.dest_id
-        )
 
 
 
 class ACL:
 
     # class properties
-    UserModel = User
-    ACLModel = ACLEntry
     client_engine = None
     inner_engine = None
-    InnerSession = None
-    user_id = None
+    inner_session = None
+    current_user = None
+    root_access_level = None
 
     # setting up engine and optionally user_model
     @classmethod
-    def setup(cls, engine, user_model=None):
-
-        # if no custom user model is given, use default
-        if user_model is not None:
-            cls.UserModel = user_model
+    def setup(cls, engine):
 
         # creating copy of client's engine
         cls.client_engine = engine
         cls.inner_engine = copy(engine)
-        cls.InnerSession = sessionmaker(bind=cls.inner_engine)
+        Session = sessionmaker(bind=cls.inner_engine)
+        cls.inner_session = Session()
 
         # create tables accordingly to user model and acl model
-        if issubclass(cls.UserModel, Base) and issubclass(cls.ACLModel, Base):
+        if issubclass(UserModel, Base) and issubclass(ACLEntryModel, Base) and issubclass(AccessLevelModel, Base):
             Base.metadata.create_all(bind=cls.inner_engine)
         else:
             raise ACLModelsNotValid
 
-        #
-        event.listen(cls.client_engine, 'before_execute', ACL.intercept, retval=True)
+        cls.root_access_level = AccessLevelModel(role_description='superuser')
+        cls.inner_session.add(cls.root_access_level)
+        cls.inner_session.commit()
+
+        event.listen(cls.client_engine, 'before_execute', intercept_select, retval=True)
+        event.listen(cls.client_engine, 'before_execute', intercept_insert, retval=True)
+
+
 
     @classmethod
     def set_user(cls, user):
         # checking if given model is instance of UserModel
-        if isinstance(user, cls.UserModel):
-            cls.user_id = user.id
+        if isinstance(user, UserModel):
+            cls.current_user = user
         else:
             raise UserNotValid
 
     @classmethod
     def unset_user(cls):
-        if cls.user_id is not None:
-            cls.user_id = None
+        if cls.current_user is not None:
+            cls.current_user = None
 
-    # function for intercepting query statement before execution and applying filter acordingly to user
-    @staticmethod
-    def intercept(conn, clauseelement, multiparams, params):
-        from sqlalchemy.sql.selectable import Select
 
-        # check if it's select statement
-        if isinstance(clauseelement, Select):
-            # 'froms' represents list of tables that statement is querying, for now, let's assume there is only one table
-            table = clauseelement.froms[0]
-
-            # adding filter in statement
-            clauseelement = clauseelement.where(table.c.id.in_(ACL.allowed_rows(str(table))))
-
-        # because retval flag in hook is set to True, we need to return this tuple of parameters, this is required
-        # to apply additional filter
-        return clauseelement, multiparams, params
 
     # creating list of available entries for requesting user accordingly to requested table
     @classmethod
     def allowed_rows(cls, table):
-        # creating session object
-        session = cls.InnerSession()
 
         # if user is not specified, return empty list
-        if cls.user_id is None:
+        if cls.current_user is None:
             return []
 
+        user_access_level = ACL.inner_session.query(AccessLevelModel) \
+                .filter(AccessLevelModel.users.contains(ACL.current_user)) \
+                .scalar()
+
         # return all entries of ACLModel accordingly to dest_table and user_id
-        filtered_entries = session.query(cls.ACLModel) \
-            .filter(cls.ACLModel.dest_table == table) \
-            .filter(cls.ACLModel.user_id == cls.user_id) \
+        filtered_entries = cls.inner_session.query(ACLEntryModel) \
+            .filter(ACLEntryModel.dest_table == table) \
+            .filter(ACLEntryModel.access_levels.contains(user_access_level)) \
             .all()
 
         return [entry.dest_id for entry in filtered_entries]
 
-    # adding user to DB, raises IntegrityError and UserNotValid
+
+    # add new user and attach it to given access_level
     @staticmethod
-    def add_user(user):
+    def add_users(users, access_level):
+        if check_users_list(users):
+            ACL.inner_session.add_all(users)
+            access_level.users.extend(users)
+            ACL.inner_session.commit()
 
-        # checking if user model is valid
-        if not isinstance(user, ACL.UserModel):
-            raise UserNotValid
-
-        session = ACL.InnerSession()
-        session.add(user)
-        session.commit()
-
-    # adding multiple users to DB at once, raises IntegrityError, ListRequired and UserNotValid
     @staticmethod
-    def add_users(users):
-        # checking if users is list
-        if not isinstance(users, list):
-            raise ListRequired
+    def get_users(**kwargs):
+        ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
 
-        # checking if every object in list is valid
-        if not all([isinstance(user, ACL.UserModel) for user in users]):
-            raise UserNotValid
-
-        session = ACL.InnerSession()
-        session.add_all(users)
-        session.commit()
+    @staticmethod
+    def update_user(user, **kwargs):
+        pass
 
     @staticmethod
     def delete_user(user):
         pass
 
-    # raises ACLEntryNotValid and IntegrityError
     @staticmethod
-    def add_entry(entry):
-        # checking if user model is valid
-        if not isinstance(entry, ACL.ACLModel):
-            raise ACLEntryNotValid
+    def add_access_levels(access_levels):
+        if check_access_levels_list(access_levels):
+            ACL.inner_session.add_all(access_levels)
+            ACL.inner_session.commit()
 
-        session = ACL.InnerSession()
-        session.add(entry)
-        session.commit()
-
-    # raises ACLEntryNotValid, ListRequired and IntegrityError
-    @staticmethod
-    def add_entries(entries):
-        # checking if users is list
-        if not isinstance(entries, list):
-            raise ListRequired
-
-        # checking if every object in list is valid
-        if not all([isinstance(entry, ACL.ACLModel) for entry in entries]):
-            raise ACLEntryNotValid
-
-        session = ACL.InnerSession()
-        session.add_all(entries)
-        session.commit()
+    # @staticmethod
+    # def add_entry(entry):
+    #     # checking if user model is valid
+    #     if not isinstance(entry, ACL.ACLModel):
+    #         raise ACLEntryNotValid
+    #
+    #     session = ACL.InnerSession()
+    #     session.add(entry)
+    #     session.commit()
+    #
+    # # raises ACLEntryNotValid, ListRequired and IntegrityError
+    # @staticmethod
+    # def add_entries(entries):
+    #     # checking if users is list
+    #     if not isinstance(entries, list):
+    #         raise ListRequired
+    #
+    #     # checking if every object in list is valid
+    #     if not all([isinstance(entry, ACL.ACLModel) for entry in entries]):
+    #         raise ACLEntryNotValid
+    #
+    #     session = ACL.InnerSession()
+    #     session.add_all(entries)
+    #     session.commit()
