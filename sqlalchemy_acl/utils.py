@@ -1,5 +1,5 @@
 from .models import UserModel, AccessLevelModel, ACLEntryModel
-from .exceptions import UserNotValid, ACLModelsNotValid, ListRequired, ACLEntryNotValid, AccessLevelNotValid
+from .exceptions import UserNotValid, ACLModelNotValid, ListRequired, ACLEntryNotValid, AccessLevelNotValid
 
 
 

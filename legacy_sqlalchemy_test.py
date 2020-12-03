@@ -60,14 +60,14 @@ if __name__ == '__main__':
     
     # add new AccessLevels
     manager_access_level = AccessLevelModel(role_description='manager')
-    ACL.add_access_levels([manager_access_level])
+    ACL.UserInterface.add_access_levels([manager_access_level])
 
     # add users with different access levels
     admin = UserModel(username='admin69')
-    ACL.add_users([admin], ACL.root_access_level)
+    ACL.UserInterface.add_users([admin], ACL.root_access_level)
 
     manager = UserModel(username='manager2137')
-    ACL.add_users([manager], manager_access_level)
+    ACL.UserInterface.add_users([manager], manager_access_level)
 
     
 

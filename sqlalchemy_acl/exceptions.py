@@ -1,14 +1,17 @@
-class UserNotValid(Exception):
+class ACLException(Exception):
 	pass
 
-class ACLEntryNotValid(Exception):
+class ACLModelNotValid(ACLException):
 	pass
 
-class AccessLevelNotValid(Exception):
+class UserNotValid(ACLModelNotValid):
 	pass
 
-class ACLModelsNotValid(Exception):
+class ACLEntryNotValid(ACLModelNotValid):
 	pass
 
-class ListRequired(Exception):
+class AccessLevelNotValid(ACLModelNotValid):
+	pass
+
+class ListRequired(ACLException):
 	pass

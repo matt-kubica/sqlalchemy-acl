@@ -52,3 +52,8 @@ def intercept_insert(conn, clauseelement, multiparams, params):
         ACL.inner_session.commit()
 
     return clauseelement, multiparams, params
+
+
+def intercept_delete(conn, clauseelement, multiparams, params):
+    # TODO
+    return clauseelement, multiparams, params

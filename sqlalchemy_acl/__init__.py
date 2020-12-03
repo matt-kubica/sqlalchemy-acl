@@ -1,44 +1,13 @@
 from copy import copy
 
-from .exceptions import ACLModelsNotValid, UserNotValid
+from .exceptions import ACLModelNotValid, UserNotValid
 from .models import UserModel, AccessLevelModel, ACLEntryModel
 from .utils import check_users_list, check_entries_list, check_access_levels_list
-from .base import Base
-from .events import intercept_select, intercept_insert
+from .base import DeclarativeBase
+from .events import intercept_insert, intercept_select, intercept_delete
 
 from sqlalchemy import event
 from sqlalchemy.orm import sessionmaker
-
-
-
-class AccessLevelBuilder():
-
-    # raises ListRequired, ACLEntryNotValid, UserNotValid
-    def __init__(self, acl_entries=None, users=None):
-        if users is None:
-            self.users = []
-        elif check_users_list(users):
-            self.users = users
-
-        if acl_entries is None:
-            self.acl_entries = []
-        elif check_entries_list(acl_entries):
-            self.acl_entries = acl_entries
-
-    # raises ListRequired, ACLEntryNotValid
-    def add_alc_entries(self, acl_entries):
-        if check_entries_list(acl_entries): self.acl_entries.extend(acl_entries)
-
-    # raises ListRequired, UserNotValid
-    def add_users(self, users):
-        if check_users_list(users): self.users.extend(users)
-
-    # raises IntegrityError
-    def build(self, description=None):
-        return AccessLevelModel(users=self.users, entries=self.acl_entries, role_description=description)
-
-
-
 
 
 class ACL:
@@ -61,10 +30,10 @@ class ACL:
         cls.inner_session = Session()
 
         # create tables accordingly to user model and acl model
-        if issubclass(UserModel, Base) and issubclass(ACLEntryModel, Base) and issubclass(AccessLevelModel, Base):
-            Base.metadata.create_all(bind=cls.inner_engine)
+        if issubclass(UserModel, DeclarativeBase) and issubclass(ACLEntryModel, DeclarativeBase) and issubclass(AccessLevelModel, DeclarativeBase):
+            DeclarativeBase.metadata.create_all(bind=cls.inner_engine)
         else:
-            raise ACLModelsNotValid
+            raise ACLModelNotValid
 
         cls.root_access_level = AccessLevelModel(role_description='superuser')
         cls.inner_session.add(cls.root_access_level)
@@ -72,7 +41,7 @@ class ACL:
 
         event.listen(cls.client_engine, 'before_execute', intercept_select, retval=True)
         event.listen(cls.client_engine, 'before_execute', intercept_insert, retval=True)
-
+        event.listen(cls.client_engine, 'before_execute', intercept_delete, retval=True)
 
 
     @classmethod
@@ -111,53 +80,54 @@ class ACL:
         return [entry.dest_id for entry in filtered_entries]
 
 
-    # add new user and attach it to given access_level
-    @staticmethod
-    def add_users(users, access_level):
-        if check_users_list(users):
-            ACL.inner_session.add_all(users)
-            access_level.users.extend(users)
-            ACL.inner_session.commit()
+    class Users:
 
-    @staticmethod
-    def get_users(**kwargs):
-        ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
+        # add new user and attach it to given access_level
+        @staticmethod
+        def add(users, access_level=None):
+            if check_users_list(users):
+                ACL.inner_session.add_all(users)
+                if access_level:
+                    access_level.users.extend(users)
+                ACL.inner_session.commit()
 
-    @staticmethod
-    def update_user(user, **kwargs):
-        pass
+        @staticmethod
+        def get(**kwargs):
+            ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
 
-    @staticmethod
-    def delete_user(user):
-        pass
+        @staticmethod
+        def update(user, **kwargs):
+            pass
 
-    @staticmethod
-    def add_access_levels(access_levels):
-        if check_access_levels_list(access_levels):
-            ACL.inner_session.add_all(access_levels)
-            ACL.inner_session.commit()
+        @staticmethod
+        def delete(user):
+            pass
 
-    # @staticmethod
-    # def add_entry(entry):
-    #     # checking if user model is valid
-    #     if not isinstance(entry, ACL.ACLModel):
-    #         raise ACLEntryNotValid
-    #
-    #     session = ACL.InnerSession()
-    #     session.add(entry)
-    #     session.commit()
-    #
-    # # raises ACLEntryNotValid, ListRequired and IntegrityError
-    # @staticmethod
-    # def add_entries(entries):
-    #     # checking if users is list
-    #     if not isinstance(entries, list):
-    #         raise ListRequired
-    #
-    #     # checking if every object in list is valid
-    #     if not all([isinstance(entry, ACL.ACLModel) for entry in entries]):
-    #         raise ACLEntryNotValid
-    #
-    #     session = ACL.InnerSession()
-    #     session.add_all(entries)
-    #     session.commit()
+
+    class AccessLevels:
+
+        @staticmethod
+        def add(access_levels):
+            if check_access_levels_list(access_levels):
+                ACL.inner_session.add_all(access_levels)
+                ACL.inner_session.commit()
+
+        @staticmethod
+        def get(**kwargs):
+            pass
+
+        @staticmethod
+        def update(access_level, **kwargs):
+            pass
+
+        @staticmethod
+        def delete(access_level):
+            pass
+
+
+    class Entries:
+
+        @staticmethod
+        def get(**kwargs):
+            pass
+

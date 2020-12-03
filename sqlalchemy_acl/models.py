@@ -3,17 +3,17 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 
-from .base import Base
+from .base import DeclarativeBase
 
 
 # association for many-to-many relationship
-association_table = Table('association', Base.metadata,
-    Column('access_level_id', Integer, ForeignKey('access_level.id')),
-    Column('acl_entry_id', Integer, ForeignKey('acl_entry.id'))
-)
+association_table = Table('association', DeclarativeBase.metadata,
+                          Column('access_level_id', Integer, ForeignKey('access_level.id')),
+                          Column('acl_entry_id', Integer, ForeignKey('acl_entry.id'))
+                          )
 
 
-class UserModel(Base):
+class UserModel(DeclarativeBase):
     __tablename__ = 'acl_user'
 
     id = Column(Integer, primary_key=True)
@@ -25,7 +25,7 @@ class UserModel(Base):
         return '<User {0}:{1}>'.format(self.id, self.username)
 
 
-class ACLEntryModel(Base):
+class ACLEntryModel(DeclarativeBase):
     __tablename__ = 'acl_entry'
 
     id = Column(Integer, primary_key=True)
@@ -43,7 +43,7 @@ class ACLEntryModel(Base):
         )
 
 
-class AccessLevelModel(Base):
+class AccessLevelModel(DeclarativeBase):
     __tablename__ = 'access_level'
 
     id = Column(Integer, primary_key=True)
