@@ -5,6 +5,7 @@ from .models import UserModel, AccessLevelModel, ACLEntryModel
 from .utils import check_users_list, check_entries_list, check_access_levels_list
 from .base import DeclarativeBase
 from .events import intercept_insert, intercept_select, intercept_delete
+from .collections import AccessLevelsTree
 
 from sqlalchemy import event
 from sqlalchemy.orm import sessionmaker
@@ -30,7 +31,9 @@ class ACL:
         cls.inner_session = Session()
 
         # create tables accordingly to user model and acl model
-        if issubclass(UserModel, DeclarativeBase) and issubclass(ACLEntryModel, DeclarativeBase) and issubclass(AccessLevelModel, DeclarativeBase):
+        if issubclass(UserModel, DeclarativeBase) and \
+           issubclass(ACLEntryModel, DeclarativeBase) and \
+           issubclass(AccessLevelModel, DeclarativeBase):
             DeclarativeBase.metadata.create_all(bind=cls.inner_engine)
         else:
             raise ACLModelNotValid
@@ -67,14 +70,20 @@ class ACL:
         if cls.current_user is None:
             return []
 
+        # get access level associated with current user
         user_access_level = ACL.inner_session.query(AccessLevelModel) \
                 .filter(AccessLevelModel.users.contains(ACL.current_user)) \
                 .scalar()
 
-        # return all entries of ACLModel accordingly to dest_table and user_id
-        filtered_entries = cls.inner_session.query(ACLEntryModel) \
+        # get all sub-access-levels
+        user_sub_access_levels = AccessLevelsTree(user_access_level).subnodes_list()
+
+        # return all entries of ACLModel accordingly to dest_table and user_sub_access_levels
+        filtered_entries = []
+        for acl in user_sub_access_levels:
+            filtered_entries += cls.inner_session.query(ACLEntryModel) \
             .filter(ACLEntryModel.dest_table == table) \
-            .filter(ACLEntryModel.access_levels.contains(user_access_level)) \
+            .filter(ACLEntryModel.access_levels.contains(acl)) \
             .all()
 
         return [entry.dest_id for entry in filtered_entries]
@@ -93,7 +102,7 @@ class ACL:
 
         @staticmethod
         def get(**kwargs):
-            ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
+            return ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
 
         @staticmethod
         def update(user, **kwargs):
@@ -114,7 +123,7 @@ class ACL:
 
         @staticmethod
         def get(**kwargs):
-            pass
+            return ACL.inner_session.query(AccessLevelModel).filter_by(**kwargs).all()
 
         @staticmethod
         def update(access_level, **kwargs):

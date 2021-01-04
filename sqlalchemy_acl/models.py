@@ -1,6 +1,6 @@
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
 
 from .base import DeclarativeBase
@@ -47,9 +47,14 @@ class AccessLevelModel(DeclarativeBase):
     __tablename__ = 'access_level'
 
     id = Column(Integer, primary_key=True)
+    parent_id = Column(Integer, ForeignKey('access_level.id'))
     role_description = Column(String(64), nullable=True)
+
+    children = relationship('AccessLevelModel', backref=backref('parent', remote_side=[id]))
     users = relationship('UserModel', back_populates='access_level')
-    entries = relationship('ACLEntryModel', secondary=association_table, back_populates='access_levels')
+    entries = relationship('ACLEntryModel', secondary=association_table,
+                           back_populates='access_levels')
+
 
     def __repr__(self):
         return '<AccessLevel {0}:{1}>'.format(
