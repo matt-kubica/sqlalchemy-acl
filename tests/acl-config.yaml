@@ -1,0 +1,26 @@
+root:
+  description: "Root"
+  children:
+    - 
+      description: "Executive Director"
+      children:
+        - 
+          description: "Project Manager"
+          children: 
+            -  
+              description: "Software Developer"
+              children:
+                -
+                  description: "Software Developer Intern"
+                  children: ~
+            - 
+              description: "DevOps"
+              children: ~
+            -
+              description: "Network Admin"
+              children:
+                - 
+                  description: "Network Admin Intern"
+                  children: ~
+
+
