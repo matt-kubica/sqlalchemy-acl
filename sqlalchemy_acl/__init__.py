@@ -5,7 +5,7 @@ from .models import UserModel, AccessLevelModel, ACLEntryModel
 from .utils import check_users_list, check_entries_list, check_access_levels_list
 from .base import DeclarativeBase
 from .events import intercept_insert, intercept_select, intercept_delete
-from .collections import AccessLevelsTree
+from .collections import AccessLevelsTree, AccessLevelsParser
 
 from sqlalchemy import event
 from sqlalchemy.orm import sessionmaker
@@ -22,7 +22,7 @@ class ACL:
 
     # setting up engine and optionally user_model
     @classmethod
-    def setup(cls, engine):
+    def setup(cls, engine, access_levels_config=None):
 
         # creating copy of client's engine
         cls.client_engine = engine
@@ -38,10 +38,16 @@ class ACL:
         else:
             raise ACLModelNotValid
 
-        cls.root_access_level = AccessLevelModel(role_description='superuser')
-        cls.inner_session.add(cls.root_access_level)
-        cls.inner_session.commit()
+        # access-levels config
+        # parse yaml config file or create default root access-level
+        if access_levels_config:
+            access_levels = AccessLevelsParser(access_levels_config).get_access_levels()
+            cls.root_access_level = access_levels[0]
+        else:
+            cls.root_access_level = AccessLevelModel(role_description='root')
+        ACL.AccessLevels.add([cls.root_access_level])
 
+        # attach events
         event.listen(cls.client_engine, 'before_execute', intercept_select, retval=True)
         event.listen(cls.client_engine, 'before_execute', intercept_insert, retval=True)
         event.listen(cls.client_engine, 'before_execute', intercept_delete, retval=True)
@@ -102,7 +108,10 @@ class ACL:
 
         @staticmethod
         def get(**kwargs):
-            return ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
+            users = ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
+            if len(users) > 1: return users
+            elif len(users) == 1: return users[0]
+            else: return None
 
         @staticmethod
         def update(user, **kwargs):
@@ -123,7 +132,10 @@ class ACL:
 
         @staticmethod
         def get(**kwargs):
-            return ACL.inner_session.query(AccessLevelModel).filter_by(**kwargs).all()
+            access_levels = ACL.inner_session.query(AccessLevelModel).filter_by(**kwargs).all()
+            if len(access_levels) > 1: return access_levels
+            elif len(access_levels) == 1: return access_levels[0]
+            else: return None
 
         @staticmethod
         def update(access_level, **kwargs):

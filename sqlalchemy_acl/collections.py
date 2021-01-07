@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from .models import AccessLevelModel
 
 
-
 class Iterator(ABC):
 
     @abstractmethod
@@ -58,3 +57,32 @@ class AccessLevelsTree(IterableCollection):
             else: break
 
         return subnodes
+
+
+# parse yaml and traverse access-levels tree with DFS algorithm
+class AccessLevelsParser():
+
+    def __init__(self, path):
+        self.access_levels = []
+        self.config = None
+        try:
+            with open(path) as fp:
+                import yaml
+                self.config = yaml.load(fp, Loader=yaml.FullLoader)
+        except FileNotFoundError:
+            # TODO: change to logging
+            print('ACL config file ({0}) not found, exiting...'.format(path))
+            exit(1)
+
+    def traverse(self, current, parent=None):
+        current_object = AccessLevelModel(role_description=current['description'], parent=parent)
+        self.access_levels.append(current_object)
+
+        if current['children']:
+            [self.traverse(child, current_object) for child in current['children']]
+
+        return
+
+    def get_access_levels(self):
+        self.traverse(self.config['root'])
+        return self.access_levels
