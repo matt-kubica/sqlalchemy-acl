@@ -2,7 +2,7 @@ import sys
 import unittest
 sys.path.insert(0,'..')
 
-from tests.setup import DefaultSetupMixin, ParseYAMLSetupMixin
+from tests.setup import DefaultSetupMixin, ParseYAMLSetupMixin, PostgresSetupMixin
 from tests.models import ExemplaryModel
 from sqlalchemy_acl import ACL
 from sqlalchemy_acl.models import UserModel
@@ -122,6 +122,51 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		ACL.unset_user()
 
 
+### DOCKER AND POSTGRES IMAGE REQUIRED ###
+# for more see notes above setup.PostgresSetupMixin class
+# if you want to skip this test case, simply comment it out (yes, there is probably better way of doing this ;) )
+class StandardConcurrentQueriesTestCase(PostgresSetupMixin, unittest.TestCase):
+
+	def test_parallel_selects(self):
+		# objects associated with root access level
+		root_level_objects = [
+			ExemplaryModel(id=1, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=2, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=3, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=4, string_field='some_string', integer_field=randrange(100000)),
+		]
+		self.session.add_all(root_level_objects)
+		self.session.commit()
+
+		import threading, logging, random
+		format = "%(asctime)s: %(message)s"
+		logging.basicConfig(format=format, level=logging.DEBUG,
+							datefmt="%H:%M:%S")
+
+		def thread_function(id):
+			logging.debug('Thread {0} started..'.format(id))
+			for _ in range(3):
+				ACL.set_user(ACL.Users.get(username='admin1'))
+				objects = self.session.query(ExemplaryModel).all()
+				logging.debug('thread = {0}, objects = {1}'.format(id, objects))
+				self.assertEqual(root_level_objects, objects)
+				ACL.unset_user()
+			logging.debug('Thread {0} finished..'.format(id))
+
+		threads = []
+		for i in range(5):
+			thr = threading.Thread(target=thread_function, args=(i,))
+			threads.append(thr)
+			thr.start()
+
+		for thr in threads:
+			thr.join()
+
+
+
+
+
 
 if __name__ == '__main__':
 	unittest.main()
+
