@@ -27,7 +27,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 
 
 	def test_get_objects(self):
-		# wages associated with root access level
+		# objects associated with root access level
 		root_level_objects = [
 			ExemplaryModel(id=1, string_field='some_string', integer_field=randrange(100000)),
 			ExemplaryModel(id=2, string_field='some_string', integer_field=randrange(100000)),
@@ -73,6 +73,52 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		# this user shouldn't have access to any entries
 		self.assertEqual(self.session.query(ExemplaryModel).all(), [])
 		self.assertNotEqual(self.session.query(ExemplaryModel), other_level_objects)
+		ACL.unset_user()
+
+
+	def test_delete_object_with_select(self):
+		# objects associated with root access level
+		root_level_objects = [
+			ExemplaryModel(id=1, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=2, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=3, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=4, string_field='some_string', integer_field=randrange(100000)),
+		]
+		self.session.add_all(root_level_objects)
+		self.session.commit()
+
+		ACL.set_user(ACL.Users.get(username='admin1'))
+		# get first object (object with id = 1)
+		object = self.session.query(ExemplaryModel).get(1)
+		# delete object and commit changes to database
+		self.session.delete(object)
+		self.session.commit()
+
+		# create set corresponding to initial list without first object
+		after_deletion = set(root_level_objects) - {object}
+		# assert with select query result
+		self.assertEqual(after_deletion, set(self.session.query(ExemplaryModel).all()))
+		ACL.unset_user()
+
+
+	def test_delete_object_without_select(self):
+		# objects associated with root access level
+		root_level_objects = [
+			ExemplaryModel(id=1, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=2, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=3, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=4, string_field='some_string', integer_field=randrange(100000)),
+		]
+		self.session.add_all(root_level_objects)
+		self.session.commit()
+
+		ACL.set_user(ACL.Users.get(username='admin1'))
+		# delete object with id = 1
+		self.session.query(ExemplaryModel).filter_by(id=1).delete()
+		self.session.commit()
+
+		after_deletion = self.session.query(ExemplaryModel).filter(ExemplaryModel.id.in_([2,3,4]))
+		self.assertEqual(set(after_deletion), set(self.session.query(ExemplaryModel).all()))
 		ACL.unset_user()
 
 
