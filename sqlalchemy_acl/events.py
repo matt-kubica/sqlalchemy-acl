@@ -1,6 +1,5 @@
 from sqlalchemy.sql.selectable import Select
-from sqlalchemy.sql.dml import Insert
-
+from sqlalchemy.sql.dml import Insert, Delete
 
 from .models import ACLEntryModel, UserModel, AccessLevelModel
 
@@ -54,6 +53,22 @@ def intercept_insert(conn, clauseelement, multiparams, params):
     return clauseelement, multiparams, params
 
 
+# function for intercepting delete statement - adds appropriate filter according to who is deleting
 def intercept_delete(conn, clauseelement, multiparams, params):
-    # TODO
+    from . import ACL
+
+    if isinstance(clauseelement, Delete):
+        # 'froms' represents list of tables that statement is querying, for now, let's assume there is only one table
+        table = clauseelement.table
+
+        # adding filter in statement
+        clauseelement = clauseelement.where(table.c.id.in_(ACL.allowed_rows(str(table))))
+
+        # removing ACLEntry corresponding to given objects
+        for object_dict in multiparams[0]:
+            id = object_dict['id']
+            # print('dest_id = {0}, dest_table = {1}'.format(id, str(table)))
+            ACL.inner_session.query(ACLEntryModel).filter_by(dest_id=id, dest_table=str(table)).delete()
+            ACL.inner_session.commit()
+
     return clauseelement, multiparams, params
