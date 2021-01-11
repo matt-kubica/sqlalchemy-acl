@@ -140,4 +140,3 @@ cython_debug/
 .DS_Store
 *.sqlite
 *.idea
-utils
