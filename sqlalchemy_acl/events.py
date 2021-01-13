@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.dml import Insert, Delete
 
@@ -38,17 +39,21 @@ def intercept_insert(conn, clauseelement, multiparams, params):
                 .filter(AccessLevelModel.users.contains(ACL.current_user)) \
                 .scalar()
 
-        # iterate over dictionaries with properties of objects
-        for object_dict in multiparams[0]:
-            id = object_dict['id']
-            # create appropriate ACLEntry
-            entry = ACLEntryModel(dest_table=tablename, dest_id=id)
-            # attach ACLEntry to AccessLevel
-            entry.access_levels.append(user_access_level)
-            ACL.inner_session.add(entry)
 
-        # add objects to database
-        ACL.inner_session.commit()
+        try:
+            # iterate over dictionaries with properties of objects
+            for object_dict in multiparams[0]:
+                id = object_dict['id']
+                # create appropriate ACLEntry
+                entry = ACLEntryModel(dest_table=tablename, dest_id=id)
+                # attach ACLEntry to AccessLevel
+                entry.access_levels.append(user_access_level)
+                ACL.inner_session.add(entry)
+
+            # add objects to database
+            ACL.inner_session.commit()
+        except IntegrityError:
+            ACL.inner_session.rollback()
 
     return clauseelement, multiparams, params
 
