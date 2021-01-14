@@ -1,40 +1,34 @@
-
-
 import functools, sys, os
-
-from sqlalchemy.exc import IntegrityError
-
 sys.path.insert(0,'../..')
 
-import flask
 from flask import Flask, request, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy_acl import ACL
 from sqlalchemy_acl.models import UserModel
 
 
-
-# app instance
-app = Flask(__name__)
-
-DB_FILENAME = '../db.sqlite'
-ACL_CONFIG_FILENAME = '../acl-config.yaml'
+DB_FILENAME = 'db.sqlite'
+ACL_CONFIG_FILENAME = 'acl-config.yaml'
 DELETE_DB = True
 
-# database config
+
+### --- INIT SECTION ------------------------------------------------------------------------------
+app = Flask(__name__)
+
+# config
 if os.path.exists(DB_FILENAME) and DELETE_DB: os.remove(DB_FILENAME)
 DATABASE_URI = 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), DB_FILENAME)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+### -----------------------------------------------------------------------------------------------
 
 
-# database initialization
+
+### --- MODELS SECTION ----------------------------------------------------------------------------
 db = SQLAlchemy(app)
-
-# init serializer
-ma = Marshmallow(app)
 
 class ExemplaryModel(db.Model):
     __tablename__ = 'testable-models'
@@ -51,25 +45,29 @@ class ExemplaryModel(db.Model):
     def __repr__(self):
         return '<TestableModel {0}>'.format(self.id)
 
+# creating tables in db
+db.create_all()
+### -----------------------------------------------------------------------------------------------
+
+
+### --- SERIALIZERS SECTION -----------------------------------------------------------------------
+ma = Marshmallow(app)
+
 # defining serializer schema
 class ExemplarySchema(ma.Schema):
     class Meta:
         fields = ('id', 'string_field', 'integer_field')
 
-
 # init schemas
 std_schema = ExemplarySchema(many=False)
 mul_schema = ExemplarySchema(many=True)
+### -----------------------------------------------------------------------------------------------
 
-# creating tables in db
-db.create_all()
 
-# ACL setup
-# engine is required argument
+
+### --- ACL SETUP SECTION -------------------------------------------------------------------------
 ACL.setup(db.engine, ACL_CONFIG_FILENAME)
 ACL.Users.add([UserModel(username='admin')], ACL.root_access_level)
-
-
 
 def validate_request(f):
     @functools.wraps(f)
@@ -79,9 +77,11 @@ def validate_request(f):
 
         return f(*args, **kwargs)
     return decorated_function
+### -----------------------------------------------------------------------------------------------
 
 
 
+### --- ENDPOINTS SECTION -------------------------------------------------------------------------
 # get all exemplary objects
 @app.route('/exemplary-object', methods=['GET'])
 @validate_request
@@ -103,7 +103,9 @@ def get_object(id):
 @validate_request
 def post_object():
     try:
-        object = ExemplaryModel(request.json['id'], request.json['string_field'], request.json['integer_field'])
+        object = ExemplaryModel(
+            request.json['id'], request.json['string_field'], request.json['integer_field']
+        )
         db.session.add(object)
         db.session.commit()
         return std_schema.jsonify(object)
@@ -147,15 +149,11 @@ def delete_object(id):
     except IntegrityError:
         db.session.rollback()
         abort(400)
+### -----------------------------------------------------------------------------------------------
 
 
 
-
-
-
-
-
-
-# will execute only if this file is entry point
+# debug should be set to False in all cases because otherwise
+# reload-thread is launched and ACL does not work in this case (yet)
 if __name__ == '__main__':
     app.run(debug=False)
