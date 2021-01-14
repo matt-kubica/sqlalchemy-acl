@@ -123,7 +123,7 @@ class PostgresSetupMixin:
 	ACL_CONFIG = 'acl-config.yaml'
 
 	def setUp(self):
-		call('utils/start_postgres.sh')
+		call('../utils/start_postgres.sh')
 		time.sleep(3)
 		self.session, self.engine = setup_database(PostgresSetupMixin.DB_PATH)
 		ACL.setup(self.engine, ParseYAMLSetupMixin.ACL_CONFIG)
@@ -151,5 +151,5 @@ class PostgresSetupMixin:
 	def tearDown(self):
 		self.session.close()
 		time.sleep(3)
-		call('utils/clear_postgres.sh')
+		call('../utils/clear_postgres.sh')
 		# time.sleep(3)

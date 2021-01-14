@@ -1,9 +1,9 @@
-import sys
-import unittest
-sys.path.insert(0,'..')
+import sys, unittest
+sys.path.insert(0,'../..')
+sys.path.insert(1,'..')
 
-from tests.setup import DefaultSetupMixin, ParseYAMLSetupMixin, PostgresSetupMixin
-from tests.models import ExemplaryModel
+from legacy_test.setup import DefaultSetupMixin, ParseYAMLSetupMixin, PostgresSetupMixin
+from legacy_test.models import ExemplaryModel
 from sqlalchemy_acl import ACL
 from sqlalchemy_acl.models import UserModel
 
