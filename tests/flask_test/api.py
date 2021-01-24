@@ -5,6 +5,7 @@ from . import db
 from .serializers import std_schema, mul_schema
 from .models import ExemplaryModel
 from .utils import validate_request
+from .auth import http_auth
 
 
 api = Blueprint('api', __name__)
@@ -12,6 +13,7 @@ api = Blueprint('api', __name__)
 
 # get all exemplary objects
 @api.route('/exemplary-object', methods=['GET'])
+@http_auth.login_required
 @validate_request
 def get_objects():
     objects = ExemplaryModel.query.all()
@@ -20,6 +22,7 @@ def get_objects():
 
 # get single exemplary object with given id
 @api.route('/exemplary-object/<id>', methods=['GET'])
+@http_auth.login_required
 @validate_request
 def get_object(id):
     object = ExemplaryModel.query.get(id)
@@ -28,6 +31,7 @@ def get_object(id):
 
 # post single exemplary object
 @api.route('/exemplary-object', methods=['POST'])
+@http_auth.login_required
 @validate_request
 def post_object():
     try:
@@ -43,6 +47,7 @@ def post_object():
 
 # update exemplary object with given id
 @api.route('/exemplary-object/<id>', methods=['PUT'])
+@http_auth.login_required
 @validate_request
 def update_object(id):
     object = ExemplaryModel.query.get(id)
@@ -63,6 +68,7 @@ def update_object(id):
 
 # delete exemplary object with given id
 @api.route('/exemplary-object/<id>', methods=['DELETE'])
+@http_auth.login_required
 @validate_request
 def delete_object(id):
     object = ExemplaryModel.query.get(id)

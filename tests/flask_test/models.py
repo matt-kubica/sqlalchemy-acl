@@ -1,3 +1,9 @@
+import sys
+sys.path.insert(0,'../..')
+sys.path.insert(0,'..')
+
+from sqlalchemy_acl.models import UserModelMixin
+
 from . import db
 
 class ExemplaryModel(db.Model):
@@ -15,5 +21,12 @@ class ExemplaryModel(db.Model):
     def __repr__(self):
         return '<TestableModel {0}>'.format(self.id)
 
-# creating tables in db
-# db.create_all()
+
+class CustomUserModel(UserModelMixin):
+    email = db.Column(db.String(64), unique=False, nullable=False)
+    password_hash = db.Column(db.String(128), unique=False, nullable=False)
+
+    def __init__(self, email, password_hash, **kwargs):
+        self.email = email
+        self.password_hash = password_hash
+        super().__init__(**kwargs)

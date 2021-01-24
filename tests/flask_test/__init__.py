@@ -1,4 +1,4 @@
-import functools, sys, os
+import sys, os
 sys.path.insert(0,'../..')
 sys.path.insert(0,'..')
 
@@ -6,7 +6,8 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
 from sqlalchemy_acl import ACL
-from sqlalchemy_acl.models import UserModel
+
+
 
 
 def register_blueprints(app):
@@ -14,6 +15,11 @@ def register_blueprints(app):
     from .api import api as api_blueprint
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(api_blueprint)
+
+
+def setup_acl(engine):
+    from .models import CustomUserModel
+    ACL.setup(engine, user_model=CustomUserModel, access_levels_config=ACL_CONFIG_ABS_PATH)
 
 
 ABS_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -31,12 +37,12 @@ if os.path.exists(DB_ABS_PATH) and DELETE_DB: os.remove(DB_ABS_PATH)
 DATABASE_URI = 'sqlite:///' + DB_ABS_PATH
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'my-ultra-secret-key'
 db.init_app(app)
 register_blueprints(app)
-
 db.create_all(app=app)
-engine = db.get_engine(app)
+setup_acl(engine=db.get_engine(app))
 
-ACL.setup(engine, ACL_CONFIG_ABS_PATH)
-ACL.Users.add([UserModel(username='admin')], ACL.root_access_level)
+
+
 
