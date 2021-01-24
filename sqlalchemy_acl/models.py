@@ -51,7 +51,7 @@ class AccessLevelModel(DeclarativeBase):
     role_description = Column(String(64), nullable=True)
 
     children = relationship('AccessLevelModel', backref=backref('parent', remote_side=[id]))
-    users = relationship('UserModelMixin', back_populates='access_level')
+    users = relationship('UserModelMixin', back_populates='access_level', enable_typechecks=False)
     entries = relationship('ACLEntryModel', secondary=association_table,
                            back_populates='access_levels')
 
