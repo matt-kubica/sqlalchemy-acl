@@ -13,6 +13,8 @@ flask-marshmallow = "*"
 marshmallow-sqlalchemy = "*"
 pyyaml = "*"
 psycopg2-binary = "*"
+flask-httpauth = "*"
+itsdangerous = "*"
 
 [requires]
 python_version = "3.8"
