@@ -16,11 +16,11 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		users = ACL.Users.get()
 		self.assertIsInstance(users, list)
 		self.assertTrue(users)
-		[self.assertIsInstance(user, ACL.user_model) for user in users]
+		[self.assertIsInstance(user, ACL.UserModel) for user in users]
 
 
 	def test_add_users(self):
-		ex_user = ACL.user_model(username='example_user')
+		ex_user = ACL.UserModel(username='example_user')
 		ACL.Users.add([ex_user])
 		self.assertEqual(ACL.Users.get(username='example_user'), ex_user)
 

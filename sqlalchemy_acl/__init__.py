@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 class ACL:
 
     # class properties
-    user_model = None
+    UserModel = None
     client_engine = None
     inner_engine = None
     inner_session = None
@@ -36,10 +36,10 @@ class ACL:
         cls.inner_engine = copy(engine)
         Session = sessionmaker(bind=cls.inner_engine)
         cls.inner_session = Session()
-        cls.user_model = UserModelMixin if not user_model else user_model
+        cls.UserModel = UserModelMixin if not user_model else user_model
 
         # create tables accordingly to user model and acl model
-        if issubclass(cls.user_model, DeclarativeBase) and \
+        if issubclass(cls.UserModel, DeclarativeBase) and \
            issubclass(ACLEntryModel, DeclarativeBase) and \
            issubclass(AccessLevelModel, DeclarativeBase):
             DeclarativeBase.metadata.create_all(bind=cls.inner_engine)
@@ -64,7 +64,7 @@ class ACL:
     @classmethod
     def set_user(cls, user):
         # checking if given model is instance of UserModel
-        if isinstance(user, cls.user_model):
+        if isinstance(user, cls.UserModel):
             cls.current_user = user
         else:
             raise UserNotValid
@@ -116,7 +116,7 @@ class ACL:
 
         @staticmethod
         def get(**kwargs):
-            users = ACL.inner_session.query(ACL.user_model).filter_by(**kwargs).all()
+            users = ACL.inner_session.query(ACL.UserModel).filter_by(**kwargs).all()
             if len(users) > 1: return users
             elif len(users) == 1: return users[0]
             else: return None
