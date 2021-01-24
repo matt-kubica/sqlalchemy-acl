@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, update
 from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy_acl import ACL
-from sqlalchemy_acl.models import AccessLevelModel, UserModel
+from sqlalchemy_acl.models import AccessLevelModel
 
 from .models import Base
 
@@ -44,24 +44,24 @@ class DefaultSetupMixin:
 							  devops_acl, software_dev_intern_acl, network_admin_intern_acl])
 
 		# create exemplary users
-		ACL.Users.add([UserModel(username='admin1'), UserModel(username='admin2')],
-					  ACL.root_access_level)
-		ACL.Users.add([UserModel(username='manager1'), UserModel(username='manager2')],
-					  project_manager_acl)
-		ACL.Users.add([UserModel(username='software-dev1'), UserModel(username='software-dev2'),
-					   UserModel(username='software-dev3'), UserModel(username='software-dev4')],
-					  software_developer_acl)
-		ACL.Users.add([UserModel(username='sd-intern1'), UserModel(username='sd-intern2'),
-					   UserModel(username='sd-intern3'), UserModel(username='sd-intern4'),
-					   UserModel(username='sd-intern5'), UserModel(username='sd-intern6')],
-					  software_dev_intern_acl)
-		ACL.Users.add([UserModel(username='network-admin1'), UserModel(username='network-admin2'),
-					   UserModel(username='network-admin3'), UserModel(username='network-admin4')],
-					  network_admin_acl)
-		ACL.Users.add([UserModel(username='na-intern1'), UserModel(username='na-intern2'),
-					   UserModel(username='na-intern3'), UserModel(username='na-intern4'),
-					   UserModel(username='na-intern5'), UserModel(username='na-intern6')],
-					  network_admin_intern_acl)
+		ACL.Users.add([ACL.user_model(username='admin1'), ACL.user_model(username='admin2')],
+                      ACL.root_access_level)
+		ACL.Users.add([ACL.user_model(username='manager1'), ACL.user_model(username='manager2')],
+                      project_manager_acl)
+		ACL.Users.add([ACL.user_model(username='software-dev1'), ACL.user_model(username='software-dev2'),
+                       ACL.user_model(username='software-dev3'), ACL.user_model(username='software-dev4')],
+                      software_developer_acl)
+		ACL.Users.add([ACL.user_model(username='sd-intern1'), ACL.user_model(username='sd-intern2'),
+                       ACL.user_model(username='sd-intern3'), ACL.user_model(username='sd-intern4'),
+                       ACL.user_model(username='sd-intern5'), ACL.user_model(username='sd-intern6')],
+                      software_dev_intern_acl)
+		ACL.Users.add([ACL.user_model(username='network-admin1'), ACL.user_model(username='network-admin2'),
+                       ACL.user_model(username='network-admin3'), ACL.user_model(username='network-admin4')],
+                      network_admin_acl)
+		ACL.Users.add([ACL.user_model(username='na-intern1'), ACL.user_model(username='na-intern2'),
+                       ACL.user_model(username='na-intern3'), ACL.user_model(username='na-intern4'),
+                       ACL.user_model(username='na-intern5'), ACL.user_model(username='na-intern6')],
+                      network_admin_intern_acl)
 
 	def tearDown(self):
 		self.session.close()
@@ -76,27 +76,27 @@ class ParseYAMLSetupMixin:
 
 	def setUp(self):
 		self.session, self.engine = setup_database(ParseYAMLSetupMixin.WHOLE_DB_PATH)
-		ACL.setup(self.engine, ParseYAMLSetupMixin.ACL_CONFIG)
+		ACL.setup(self.engine, access_levels_config=ParseYAMLSetupMixin.ACL_CONFIG)
 
 		# create exemplary users
-		ACL.Users.add([UserModel(username='admin1'), UserModel(username='admin2')],
-					  ACL.root_access_level)
-		ACL.Users.add([UserModel(username='manager1'), UserModel(username='manager2')],
-					  ACL.AccessLevels.get(role_description='Project Manager'))
-		ACL.Users.add([UserModel(username='software-dev1'), UserModel(username='software-dev2'),
-					   UserModel(username='software-dev3'), UserModel(username='software-dev4')],
-					  ACL.AccessLevels.get(role_description='Software Developer'))
-		ACL.Users.add([UserModel(username='sd-intern1'), UserModel(username='sd-intern2'),
-					   UserModel(username='sd-intern3'), UserModel(username='sd-intern4'),
-					   UserModel(username='sd-intern5'), UserModel(username='sd-intern6')],
-					  ACL.AccessLevels.get(role_description='Software Developer Intern'))
-		ACL.Users.add([UserModel(username='network-admin1'), UserModel(username='network-admin2'),
-					   UserModel(username='network-admin3'), UserModel(username='network-admin4')],
-					  ACL.AccessLevels.get(role_description='Network Admin'))
-		ACL.Users.add([UserModel(username='na-intern1'), UserModel(username='na-intern2'),
-					   UserModel(username='na-intern3'), UserModel(username='na-intern4'),
-					   UserModel(username='na-intern5'), UserModel(username='na-intern6')],
-					  ACL.AccessLevels.get(role_description='Network Admin Intern'))
+		ACL.Users.add([ACL.user_model(username='admin1'), ACL.user_model(username='admin2')],
+                      ACL.root_access_level)
+		ACL.Users.add([ACL.user_model(username='manager1'), ACL.user_model(username='manager2')],
+                      ACL.AccessLevels.get(role_description='Project Manager'))
+		ACL.Users.add([ACL.user_model(username='software-dev1'), ACL.user_model(username='software-dev2'),
+                       ACL.user_model(username='software-dev3'), ACL.user_model(username='software-dev4')],
+                      ACL.AccessLevels.get(role_description='Software Developer'))
+		ACL.Users.add([ACL.user_model(username='sd-intern1'), ACL.user_model(username='sd-intern2'),
+                       ACL.user_model(username='sd-intern3'), ACL.user_model(username='sd-intern4'),
+                       ACL.user_model(username='sd-intern5'), ACL.user_model(username='sd-intern6')],
+                      ACL.AccessLevels.get(role_description='Software Developer Intern'))
+		ACL.Users.add([ACL.user_model(username='network-admin1'), ACL.user_model(username='network-admin2'),
+                       ACL.user_model(username='network-admin3'), ACL.user_model(username='network-admin4')],
+                      ACL.AccessLevels.get(role_description='Network Admin'))
+		ACL.Users.add([ACL.user_model(username='na-intern1'), ACL.user_model(username='na-intern2'),
+                       ACL.user_model(username='na-intern3'), ACL.user_model(username='na-intern4'),
+                       ACL.user_model(username='na-intern5'), ACL.user_model(username='na-intern6')],
+                      ACL.AccessLevels.get(role_description='Network Admin Intern'))
 
 	def tearDown(self):
 		self.session.close()
@@ -126,27 +126,27 @@ class PostgresSetupMixin:
 		call('../utils/start_postgres.sh')
 		time.sleep(3)
 		self.session, self.engine = setup_database(PostgresSetupMixin.DB_PATH)
-		ACL.setup(self.engine, ParseYAMLSetupMixin.ACL_CONFIG)
+		ACL.setup(self.engine, access_levels_config=ParseYAMLSetupMixin.ACL_CONFIG)
 
 		# create exemplary users
-		ACL.Users.add([UserModel(username='admin1'), UserModel(username='admin2')],
-					  ACL.root_access_level)
-		ACL.Users.add([UserModel(username='manager1'), UserModel(username='manager2')],
-					  ACL.AccessLevels.get(role_description='Project Manager'))
-		ACL.Users.add([UserModel(username='software-dev1'), UserModel(username='software-dev2'),
-					   UserModel(username='software-dev3'), UserModel(username='software-dev4')],
-					  ACL.AccessLevels.get(role_description='Software Developer'))
-		ACL.Users.add([UserModel(username='sd-intern1'), UserModel(username='sd-intern2'),
-					   UserModel(username='sd-intern3'), UserModel(username='sd-intern4'),
-					   UserModel(username='sd-intern5'), UserModel(username='sd-intern6')],
-					  ACL.AccessLevels.get(role_description='Software Developer Intern'))
-		ACL.Users.add([UserModel(username='network-admin1'), UserModel(username='network-admin2'),
-					   UserModel(username='network-admin3'), UserModel(username='network-admin4')],
-					  ACL.AccessLevels.get(role_description='Network Admin'))
-		ACL.Users.add([UserModel(username='na-intern1'), UserModel(username='na-intern2'),
-					   UserModel(username='na-intern3'), UserModel(username='na-intern4'),
-					   UserModel(username='na-intern5'), UserModel(username='na-intern6')],
-					  ACL.AccessLevels.get(role_description='Network Admin Intern'))
+		ACL.Users.add([ACL.user_model(username='admin1'), ACL.user_model(username='admin2')],
+                      ACL.root_access_level)
+		ACL.Users.add([ACL.user_model(username='manager1'), ACL.user_model(username='manager2')],
+                      ACL.AccessLevels.get(role_description='Project Manager'))
+		ACL.Users.add([ACL.user_model(username='software-dev1'), ACL.user_model(username='software-dev2'),
+                       ACL.user_model(username='software-dev3'), ACL.user_model(username='software-dev4')],
+                      ACL.AccessLevels.get(role_description='Software Developer'))
+		ACL.Users.add([ACL.user_model(username='sd-intern1'), ACL.user_model(username='sd-intern2'),
+                       ACL.user_model(username='sd-intern3'), ACL.user_model(username='sd-intern4'),
+                       ACL.user_model(username='sd-intern5'), ACL.user_model(username='sd-intern6')],
+                      ACL.AccessLevels.get(role_description='Software Developer Intern'))
+		ACL.Users.add([ACL.user_model(username='network-admin1'), ACL.user_model(username='network-admin2'),
+                       ACL.user_model(username='network-admin3'), ACL.user_model(username='network-admin4')],
+                      ACL.AccessLevels.get(role_description='Network Admin'))
+		ACL.Users.add([ACL.user_model(username='na-intern1'), ACL.user_model(username='na-intern2'),
+                       ACL.user_model(username='na-intern3'), ACL.user_model(username='na-intern4'),
+                       ACL.user_model(username='na-intern5'), ACL.user_model(username='na-intern6')],
+                      ACL.AccessLevels.get(role_description='Network Admin Intern'))
 
 	def tearDown(self):
 		self.session.close()

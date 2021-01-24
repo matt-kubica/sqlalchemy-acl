@@ -5,7 +5,6 @@ sys.path.insert(1,'..')
 from legacy_test.setup import DefaultSetupMixin, ParseYAMLSetupMixin, PostgresSetupMixin
 from legacy_test.models import ExemplaryModel
 from sqlalchemy_acl import ACL
-from sqlalchemy_acl.models import UserModel
 
 from random import randrange
 
@@ -17,11 +16,11 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		users = ACL.Users.get()
 		self.assertIsInstance(users, list)
 		self.assertTrue(users)
-		[self.assertIsInstance(user, UserModel) for user in users]
+		[self.assertIsInstance(user, ACL.user_model) for user in users]
 
 
 	def test_add_users(self):
-		ex_user = UserModel(username='example_user')
+		ex_user = ACL.user_model(username='example_user')
 		ACL.Users.add([ex_user])
 		self.assertEqual(ACL.Users.get(username='example_user'), ex_user)
 
