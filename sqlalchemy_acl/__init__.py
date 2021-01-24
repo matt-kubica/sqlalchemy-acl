@@ -1,7 +1,7 @@
 from copy import copy
 
 from .exceptions import ACLModelNotValid, UserNotValid
-from .models import UserModel, AccessLevelModel, ACLEntryModel
+from .models import UserModelMixin, AccessLevelModel, ACLEntryModel
 from .utils import check_users_list, check_entries_list, check_access_levels_list
 from .base import DeclarativeBase
 from .events import intercept_insert, intercept_select, intercept_delete
@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 class ACL:
 
     # class properties
+    user_model = None
     client_engine = None
     inner_engine = None
     inner_session = None
@@ -22,16 +23,23 @@ class ACL:
 
     # setting up engine and optionally user_model
     @classmethod
-    def setup(cls, engine, access_levels_config=None):
+    def setup(cls, engine, user_model=None, access_levels_config=None):
+
+        # check provided user model
+        if user_model is not None:
+            if not issubclass(user_model, UserModelMixin):
+                print('Provided user model is invalid, exiting...')
+                exit(1)
 
         # creating copy of client's engine
         cls.client_engine = engine
         cls.inner_engine = copy(engine)
         Session = sessionmaker(bind=cls.inner_engine)
         cls.inner_session = Session()
+        cls.user_model = UserModelMixin if not user_model else user_model
 
         # create tables accordingly to user model and acl model
-        if issubclass(UserModel, DeclarativeBase) and \
+        if issubclass(cls.user_model, DeclarativeBase) and \
            issubclass(ACLEntryModel, DeclarativeBase) and \
            issubclass(AccessLevelModel, DeclarativeBase):
             DeclarativeBase.metadata.create_all(bind=cls.inner_engine)
@@ -56,7 +64,7 @@ class ACL:
     @classmethod
     def set_user(cls, user):
         # checking if given model is instance of UserModel
-        if isinstance(user, UserModel):
+        if isinstance(user, cls.user_model):
             cls.current_user = user
         else:
             raise UserNotValid
@@ -108,7 +116,7 @@ class ACL:
 
         @staticmethod
         def get(**kwargs):
-            users = ACL.inner_session.query(UserModel).filter_by(**kwargs).all()
+            users = ACL.inner_session.query(ACL.user_model).filter_by(**kwargs).all()
             if len(users) > 1: return users
             elif len(users) == 1: return users[0]
             else: return None

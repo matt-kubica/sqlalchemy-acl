@@ -13,7 +13,7 @@ association_table = Table('association', DeclarativeBase.metadata,
                           )
 
 
-class UserModel(DeclarativeBase):
+class UserModelMixin(DeclarativeBase):
     __tablename__ = 'acl_user'
 
     id = Column(Integer, primary_key=True)
@@ -51,7 +51,7 @@ class AccessLevelModel(DeclarativeBase):
     role_description = Column(String(64), nullable=True)
 
     children = relationship('AccessLevelModel', backref=backref('parent', remote_side=[id]))
-    users = relationship('UserModel', back_populates='access_level')
+    users = relationship('UserModelMixin', back_populates='access_level')
     entries = relationship('ACLEntryModel', secondary=association_table,
                            back_populates='access_levels')
 

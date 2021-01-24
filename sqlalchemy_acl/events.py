@@ -2,7 +2,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.dml import Insert, Delete
 
-from .models import ACLEntryModel, UserModel, AccessLevelModel
+from .models import ACLEntryModel, UserModelMixin, AccessLevelModel
 
 
 # function for intercepting query statement before execution and applying filter accordingly to user

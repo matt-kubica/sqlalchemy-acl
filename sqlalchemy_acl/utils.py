@@ -1,4 +1,4 @@
-from .models import UserModel, AccessLevelModel, ACLEntryModel
+from .models import UserModelMixin, AccessLevelModel, ACLEntryModel
 from .exceptions import UserNotValid, ACLModelNotValid, ListRequired, ACLEntryNotValid, AccessLevelNotValid
 
 
@@ -10,7 +10,7 @@ def check_users_list(users):
          raise ListRequired
 
     # checking if every object in list is valid
-    if not all([isinstance(user, UserModel) for user in users]):
+    if not all([isinstance(user, UserModelMixin) for user in users]):
          raise UserNotValid
 
     return True
