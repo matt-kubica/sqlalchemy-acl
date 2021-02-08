@@ -25,11 +25,11 @@ session.add_all([cl1, cl2, ord1, ord2, ord3, ord4, ord5])
 session.commit()
 
 # --- JOIN ---
-result = session.query(CustomersModel.name,
-                        OrdersModel.id, OrdersModel.order_date).join(OrdersModel).all()
-print(result)
-print(result[0]._asdict())
-print(result[0] == ('Will Smith', 1, '07-31-1998'))
+# result = session.query(CustomersModel.name,
+#                        OrdersModel.id, OrdersModel.order_date).join(OrdersModel).all()
+# print(result)
+# print(result[0]._asdict())
+# print(result[0] == ('Will Smith', 1, '07-31-1998'))
 
 # --- UPDATE ---
 # session.query(CustomersModel).filter(CustomersModel.id == 1).update({'name': 'Smill With'})
@@ -39,3 +39,30 @@ print(result[0] == ('Will Smith', 1, '07-31-1998'))
 # result = session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
 #            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
 # print(result)
+
+# --- PODZAPYTANIE W JOIN ---
+# sqlite> SELECT c.name, l.latest_order FROM customers c JOIN (
+#    ...> SELECT customer_id, MAX(order_date) AS latest_order FROM orders GROUP BY customer_id)
+#   ...> AS l
+#   ...> ON c.id = l.customer_id;
+# name|latest_order
+# Will Smith|2021-02-01
+# Denzel Washington|2021-02-02
+# Mel Gibson|2021-02-03
+# subquery = session.query(OrdersModel.customer_id, func.max(OrdersModel.order_date).label('latest_order')
+#                        ).group_by(OrdersModel.customer_id).subquery()
+# query = session.query(CustomersModel.name, subquery.c.latest_order).join(subquery,
+#                        CustomersModel.id == subquery.c.customer_id).all()
+# print(query)
+
+# --- HAVING ---
+# sqlite> SELECT customer_id, COUNT(*)
+#   ...> FROM orders
+#   ...> GROUP BY customer_id
+#   ...> HAVING COUNT(*) > 2;
+# 1|3
+query = session.query(OrdersModel.customer_id, func.count(OrdersModel.customer_id)).\
+                group_by(OrdersModel.customer_id).having(func.count(OrdersModel.customer_id) > 2)
+
+print(query)
+print(query.all())

@@ -496,6 +496,192 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(result, [(1, 2), (2, 3)])
 		ACL.unset_user()
 
+	# SUBQUERY w JOIN, niższy nie powinien widzieć późniejszych dat dodanych przez wyższego
+	def test_high_lvl_subquery(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998')
+		]
+		self.session.add_all(customers)
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='trads'))
+		orders = [
+			OrdersModel(id=5, customer_id=1, order_date='10-31-1998'),
+			OrdersModel(id=6, customer_id=2, order_date='10-15-1998'),
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		subquery = session.query(OrdersModel.customer_id, func.max(OrdersModel.order_date).label('latest_order')
+		                        ).group_by(OrdersModel.customer_id).subquery()
+		query = session.query(CustomersModel.name, subquery.c.latest_order).join(subquery,
+		                        CustomersModel.id == subquery.c.customer_id).all()
+		self.assertEqual(query, [('Will Smith', '08-31-1998'), ('Tom Hanks', '08-15-1998')])
+		ACL.unset_user()
+
+	# SUBQUERY w JOIN, wyższy powinien widzieć późniejsze daty dodane przez niższego
+	def test_low_lvl_subquery(self):
+		ACL.set_user(ACL.Users.get(username='trads'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998')
+		]
+		self.session.add_all(customers)
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		orders = [
+			OrdersModel(id=5, customer_id=1, order_date='10-31-1998'),
+			OrdersModel(id=6, customer_id=2, order_date='10-15-1998'),
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='trads'))
+		subquery = session.query(OrdersModel.customer_id, func.max(OrdersModel.order_date).label('latest_order')
+		                        ).group_by(OrdersModel.customer_id).subquery()
+		query = session.query(CustomersModel.name, subquery.c.latest_order).join(subquery,
+		                        CustomersModel.id == subquery.c.customer_id).all()
+		self.assertEqual(query, [('Will Smith', '10-31-1998'), ('Tom Hanks', '10-15-1998')])
+		ACL.unset_user()
+
+	# SUBQUERY w JOIN, użytkownik powinien widzieć późniejsze zamówienia
+	def test_same_lvl_subquery(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998')
+		]
+		self.session.add_all(customers)
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+		orders = [
+			OrdersModel(id=5, customer_id=1, order_date='10-31-1998'),
+			OrdersModel(id=6, customer_id=2, order_date='10-15-1998'),
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		subquery = session.query(OrdersModel.customer_id, func.max(OrdersModel.order_date).label('latest_order')
+		                        ).group_by(OrdersModel.customer_id).subquery()
+		query = session.query(CustomersModel.name, subquery.c.latest_order).join(subquery,
+		                        CustomersModel.id == subquery.c.customer_id).all()
+		self.assertEqual(query, [('Will Smith', '10-31-1998'), ('Tom Hanks', '10-15-1998')])
+		ACL.unset_user()
+
+	# HAVING, gdzie użytkownikowi się nie udaje, bo nie ma dostępu do tego klienta
+	# (pytamy o id klientów, którzy mają więcej niż 2 zamówienia)
+	def test_high_lvl_having(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='trads'))
+		orders = [
+			OrdersModel(id=5, customer_id=2, order_date='09-15-1998'),
+			OrdersModel(id=6, customer_id=2, order_date='10-15-1998'),
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		query = self.session.query(OrdersModel.customer_id, func.count(OrdersModel.customer_id)).\
+		                group_by(OrdersModel.customer_id).having(func.count(OrdersModel.customer_id) > 2).all()
+		self.assertEqual(query, [])
+		ACL.unset_user()
+
+	# HAVING, gdzie użytkownikowi się udaje, bo ma wyższy poziom dostępu
+	# (pytamy o id klientów, którzy mają więcej niż 2 zamówienia)
+	def test_low_lvl_having(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='trads'))
+		orders = [
+			OrdersModel(id=5, customer_id=2, order_date='09-15-1998'),
+			OrdersModel(id=6, customer_id=2, order_date='10-15-1998'),
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		query = self.session.query(OrdersModel.customer_id, func.count(OrdersModel.customer_id)).\
+		                group_by(OrdersModel.customer_id).having(func.count(OrdersModel.customer_id) > 2).all()
+		self.assertEqual(query, [(2, 4)])
+		ACL.unset_user()
+
+	# HAVING, gdzie użytkownikowi się udaje, bo ma ten sam poziom dostępu
+	# (pytamy o id klientów, którzy mają więcej niż 2 zamówienia)
+	def test_same_lvl_having(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+		orders = [
+			OrdersModel(id=5, customer_id=2, order_date='09-15-1998'),
+			OrdersModel(id=6, customer_id=2, order_date='10-15-1998'),
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		query = self.session.query(OrdersModel.customer_id, func.count(OrdersModel.customer_id)).\
+		                group_by(OrdersModel.customer_id).having(func.count(OrdersModel.customer_id) > 2).all()
+		self.assertEqual(query, [(2, 4)])
+		ACL.unset_user()
+
 ### DOCKER AND POSTGRES IMAGE REQUIRED ###
 # for more see notes above setup.PostgresSetupMixin class
 # if you want to skip this test case, simply comment it out (yes, there is probably better way of doing this ;) )
