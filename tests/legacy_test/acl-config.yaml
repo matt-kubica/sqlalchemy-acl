@@ -1,26 +1,24 @@
 root:
-  description: "Root"
+  description: "Chairman"
   children:
-    - 
-      description: "Executive Director"
+    -
+      description: "Tradesman"
       children:
-        - 
-          description: "Project Manager"
-          children: 
-            -  
-              description: "Software Developer"
-              children:
-                -
-                  description: "Software Developer Intern"
-                  children: ~
-            - 
-              description: "DevOps"
-              children: ~
+        -
+          description: "Tradesman Junior"
+          children: ~
+    -
+      description: "Accountant"
+      children:
+        -
+          description: "Accountant Junior"
+          children:
             -
-              description: "Network Admin"
-              children:
-                - 
-                  description: "Network Admin Intern"
-                  children: ~
-
-
+              description: "Accountant Intern"
+              children: ~
+    -
+      description: "Buyer"
+      children:
+        -
+          description: "Storehouse Chief"
+          children: ~

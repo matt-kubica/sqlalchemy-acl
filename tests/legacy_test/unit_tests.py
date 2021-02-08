@@ -1,10 +1,20 @@
+# Problemy:
+# nie działa wszystko, co potrzebuje JOINa (o ile dobrze rozumiem, to jest problem ze sprawdzaniem acl dla wielu tabel);
+# przy update ACL nie ma znaczenia, a chyba powinno mieć
+
+# Trzeba dołożyć:
+# czytanie ACL z pliku (żeby móc używać w ramach już istniejącej bazy);
+# możliwość przyznania dostępu wybranym użytkownikom niżej w hierarchii
+# (np. żeby księgowa mogła ustalić, że rekordy, które dodaje są również widoczne dla stażystki)
+
 import sys, unittest
 sys.path.insert(0,'../..')
 sys.path.insert(1,'..')
 
 from legacy_test.setup import DefaultSetupMixin, ParseYAMLSetupMixin, PostgresSetupMixin
-from legacy_test.models import ExemplaryModel
+from legacy_test.models import ExemplaryModel, CustomersModel, OrdersModel
 from sqlalchemy_acl import ACL
+from sqlalchemy import func
 
 from random import randrange
 
@@ -18,12 +28,10 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertTrue(users)
 		[self.assertIsInstance(user, ACL.UserModel) for user in users]
 
-
 	def test_add_users(self):
 		ex_user = ACL.UserModel(username='example_user')
 		ACL.Users.add([ex_user])
 		self.assertEqual(ACL.Users.get(username='example_user'), ex_user)
-
 
 	def test_get_objects(self):
 		# objects associated with root access level
@@ -37,7 +45,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.session.commit()
 
 		# user at one of lowest access-levels
-		some_user = ACL.Users.get(username='na-intern1')
+		some_user = ACL.Users.get(username='tradsjun1')
 		other_level_objects = [
 			ExemplaryModel(id=5, string_field='some_string', integer_field=randrange(100000)),
 			ExemplaryModel(id=6, string_field='some_string', integer_field=randrange(100000)),
@@ -51,7 +59,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		ACL.unset_user()
 
 		# set admin user
-		ACL.set_user(ACL.Users.get(username='admin1'))
+		ACL.set_user(ACL.Users.get(username='chair2'))
 		# check if all added entries are accessible for admin (root access-level user)
 		self.assertEqual(self.session.query(ExemplaryModel).all(), root_level_objects + other_level_objects)
 		ACL.unset_user()
@@ -63,17 +71,16 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		ACL.unset_user()
 
 		# set other exemplary user at same access-level
-		ACL.set_user(ACL.Users.get(username='na-intern4'))
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
 		self.assertEqual(self.session.query(ExemplaryModel).all(), other_level_objects)
 		ACL.unset_user()
 
 		# set other exemplary user at different access-level
-		ACL.set_user(ACL.Users.get(username='sd-intern2'))
+		ACL.set_user(ACL.Users.get(username='accountint'))
 		# this user shouldn't have access to any entries
 		self.assertEqual(self.session.query(ExemplaryModel).all(), [])
 		self.assertNotEqual(self.session.query(ExemplaryModel), other_level_objects)
 		ACL.unset_user()
-
 
 	def test_delete_object_with_select(self):
 		# objects associated with root access level
@@ -86,7 +93,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.session.add_all(root_level_objects)
 		self.session.commit()
 
-		ACL.set_user(ACL.Users.get(username='admin1'))
+		ACL.set_user(ACL.Users.get(username='chair1'))
 		# get first object (object with id = 1)
 		object = self.session.query(ExemplaryModel).get(1)
 		# delete object and commit changes to database
@@ -99,7 +106,6 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(after_deletion, set(self.session.query(ExemplaryModel).all()))
 		ACL.unset_user()
 
-
 	def test_delete_object_without_select(self):
 		# objects associated with root access level
 		root_level_objects = [
@@ -111,7 +117,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.session.add_all(root_level_objects)
 		self.session.commit()
 
-		ACL.set_user(ACL.Users.get(username='admin1'))
+		ACL.set_user(ACL.Users.get(username='chair1'))
 		# delete object with id = 1
 		self.session.query(ExemplaryModel).filter_by(id=1).delete()
 		self.session.commit()
@@ -120,10 +126,380 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(set(after_deletion), set(self.session.query(ExemplaryModel).all()))
 		ACL.unset_user()
 
+	# DELETE, użytkownik wyżej usuwa rekordy stworzone przez użytkownika niżej
+	def test_authorized_delete(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+
+		low_level_objects = [
+			ExemplaryModel(id=1, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=2, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=3, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=4, string_field='some_string', integer_field=randrange(100000)),
+		]
+		self.session.add_all(low_level_objects)
+		self.session.commit()
+
+		ACL.set_user(ACL.Users.get(username='chair1'))
+		object = self.session.query(ExemplaryModel).first()
+		self.session.delete(object)
+		self.session.commit()
+
+		ACL.unset_user()
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+
+		self.assertEqual(self.session.query(ExemplaryModel).all(), low_level_objects[1:])
+		ACL.unset_user()
+
+	# WHERE
+	def test_filter(self):
+		root_level_objects = [
+			ExemplaryModel(id=1, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=2, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=3, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=4, string_field='some_string', integer_field=randrange(100000)),
+		]
+		self.session.add_all(root_level_objects)
+		self.session.commit()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		low_level_objects = [
+			ExemplaryModel(id=5, string_field='some_string', integer_field=randrange(100000)),
+			ExemplaryModel(id=6, string_field='some_string', integer_field=randrange(100000))
+		]
+		self.session.add_all(low_level_objects)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+		self.assertEqual(self.session.query(ExemplaryModel).filter(ExemplaryModel.id > 2).all(), low_level_objects)
+		ACL.unset_user()
+
+	# JOIN na tabelach stworzonych przez użytkowników na tym samym poziomie
+	def test_same_lvl_join(self):
+		ACL.set_user(ACL.Users.get(username='chair1'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='chair2'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998') # dla zmyły
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+
+		join = [(customers[0], orders[0]), (customers[0], orders[1]), (customers[1], orders[2]), (customers[1], orders[3])]
+
+		result = self.session.query(CustomersModel, OrdersModel).join(OrdersModel,
+								 	CustomersModel.id==OrdersModel.customer_id).all()
+		self.assertEqual(result, join)
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='chair1'))
+		result = self.session.query(CustomersModel, OrdersModel).join(OrdersModel,
+									CustomersModel.id==OrdersModel.customer_id).all()
+		self.assertEqual(result, join)
+		ACL.unset_user()
+
+	# JOIN z tabelą stworzoną przez użytkownika niżej
+	def test_low_lvl_join(self):
+		ACL.set_user(ACL.Users.get(username='account'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998') # dla zmyły
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+
+		ACL.set_user(ACL.Users.get(username='account'))
+		join = [(customers[0], orders[0]), (customers[0], orders[1]), (customers[1], orders[2]), (customers[1], orders[3])]
+
+		result = self.session.query(CustomersModel, OrdersModel).join(OrdersModel,
+								 	CustomersModel.id==OrdersModel.customer_id).all()
+		self.assertEqual(result, join)
+		ACL.unset_user()
+
+	# JOIN z tabelą stworzoną przez użytkownika wyżej
+	def test_high_lvl_join(self):
+		ACL.set_user(ACL.Users.get(username='account'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998') # dla zmyły
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+
+		result = self.session.query(CustomersModel.name,
+		                        OrdersModel.id, OrdersModel.order_date).join(OrdersModel).all()
+		self.assertEqual(result, [])
+		ACL.unset_user()
+
+	# JOIN z tabelą stworzoną przez użytkownika wyżej, ale z dodanymi rekordami przez użytkownika niżej
+	def test_high_lvl_join(self):
+		ACL.set_user(ACL.Users.get(username='account'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+
+		client = CustomersModel(id=3, name='James Bond', phone_number='007')
+		self.session.add(client)
+		self.session.commit()
+
+		result = self.session.query(CustomersModel, OrdersModel).join(OrdersModel,
+								 	CustomersModel.id==OrdersModel.customer_id).all()
+		self.assertEqual(result, [(client, orders[4])])
+		ACL.unset_user()
+
+	# UPDATE na rekordzie o wyższym poziomie
+	def test_high_lvl_update(self):
+		ACL.set_user(ACL.Users.get(username='account'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		self.session.query(CustomersModel).filter(CustomersModel.id == 1).update({'name': 'Smill With'})
+		self.session.commit()
+
+		ACL.set_user(ACL.Users.get(username='account'))
+		result = self.session.query(CustomersModel).first()
+		self.assertEqual(result.name, 'Will Smith')
+		ACL.unset_user()
+
+	# UPDATE na rekordzie o niższym poziomie
+	def test_low_lvl_update(self):
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='account'))
+		self.session.query(CustomersModel).filter(CustomersModel.id == 1).update({'name': 'Smill With'})
+		self.session.commit()
+
+		result = self.session.query(CustomersModel).first()
+		self.assertEqual(result.name, 'Smill With')
+		ACL.unset_user()
+
+	# UPDATE na rekordzie o tym samym poziomie, stworzonym przez innego użytkownika
+	def test_same_lvl_update(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+		self.session.query(CustomersModel).filter(CustomersModel.id == 1).update({'name': 'Smill With'})
+		self.session.commit()
+
+		result = self.session.query(CustomersModel).first()
+		self.assertEqual(result.name, 'Smill With')
+		ACL.unset_user()
+
+	# COUNT na rekordach o wyższym poziomie
+	def test_high_lvl_aggr(self):
+		ACL.set_user(ACL.Users.get(username='accountint'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='account'))
+		orders = [
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='accountint'))
+		self.assertEqual(self.session.query(OrdersModel).count(), 2)
+		ACL.unset_user()
+
+	# COUNT na rekordach o niższym poziomie
+	def test_low_lvl_aggr(self):
+		ACL.set_user(ACL.Users.get(username='accountint'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='account'))
+		orders = [
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+
+		self.assertEqual(self.session.query(OrdersModel).count(), 5)
+		ACL.unset_user()
+
+	# COUNT na rekordach o tym samym poziomie
+	def test_same_lvl_aggr(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=3, order_date='08-28-1998')
+		]
+		self.session.add_all(orders)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+		self.assertEqual(self.session.query(OrdersModel).count(), 5)
+		ACL.unset_user()
+
+	# GROUP BY na rekordach na wyższym poziomie
+	def test_high_lvl_groupby(self):
+		ACL.set_user(ACL.Users.get(username='account'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=2, order_date='08-28-1998')
+		]
+
+		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
+		            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
+		self.assertEqual(result, [])
+		ACL.unset_user()
+
+	# GROUP BY na rekordach na niższym poziomie
+	def test_low_lvl_groupby(self):
+		ACL.set_user(ACL.Users.get(username='accountjun'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='account'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=2, order_date='08-28-1998')
+		]
+
+		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
+		            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
+		self.assertEqual(result, [(1, 2), (2, 3)])
+		ACL.unset_user()
+
+	# GROUP By na rekordach na tym samym poziomie
+	def test_same_lvl_groupby(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun2'))
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='07-31-1998'),
+			OrdersModel(id=2, customer_id=1, order_date='08-31-1998'),
+			OrdersModel(id=3, customer_id=2, order_date='07-15-1998'),
+			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
+			OrdersModel(id=5, customer_id=2, order_date='08-28-1998')
+		]
+
+		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
+		            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
+		self.assertEqual(result, [(1, 2), (2, 3)])
+		ACL.unset_user()
 
 ### DOCKER AND POSTGRES IMAGE REQUIRED ###
 # for more see notes above setup.PostgresSetupMixin class
 # if you want to skip this test case, simply comment it out (yes, there is probably better way of doing this ;) )
+"""
 class StandardConcurrentQueriesTestCase(PostgresSetupMixin, unittest.TestCase):
 
 	def test_parallel_selects(self):
@@ -160,12 +536,8 @@ class StandardConcurrentQueriesTestCase(PostgresSetupMixin, unittest.TestCase):
 
 		for thr in threads:
 			thr.join()
-
-
-
-
+"""
 
 
 if __name__ == '__main__':
 	unittest.main()
-

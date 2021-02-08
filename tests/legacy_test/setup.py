@@ -1,3 +1,5 @@
+# narazie zmieniłem tylko setup dla YAML
+
 import sys, os
 import time
 from subprocess import call
@@ -31,7 +33,7 @@ class DefaultSetupMixin:
 		self.session, self.engine = setup_database(DefaultSetupMixin.WHOLE_DB_PATH)
 		ACL.setup(self.engine)
 
-		# create exemplary access-levels structure
+		# tabela z poziomami dostępu
 		director_acl = AccessLevelModel(role_description='Executive Director', parent=ACL.root_access_level)
 		project_manager_acl = AccessLevelModel(role_description='Project Manager', parent=director_acl)
 		software_developer_acl = AccessLevelModel(role_description='Software Developer', parent=project_manager_acl)
@@ -43,7 +45,7 @@ class DefaultSetupMixin:
 		ACL.AccessLevels.add([director_acl, project_manager_acl, software_developer_acl, network_admin_intern_acl,
 							  devops_acl, software_dev_intern_acl, network_admin_intern_acl])
 
-		# create exemplary users
+		# użytkownicy z odpowiednimi trybami dostępu (najlepiej po kilku na jeden tryb)
 		ACL.Users.add([ACL.UserModel(username='admin1'), ACL.UserModel(username='admin2')],
 					  ACL.root_access_level)
 		ACL.Users.add([ACL.UserModel(username='manager1'), ACL.UserModel(username='manager2')],
@@ -79,24 +81,30 @@ class ParseYAMLSetupMixin:
 		ACL.setup(self.engine, access_levels_config=ParseYAMLSetupMixin.ACL_CONFIG)
 
 		# create exemplary users
-		ACL.Users.add([ACL.UserModel(username='admin1'), ACL.UserModel(username='admin2')],
+		ACL.Users.add([ACL.UserModel(username='chair1'), ACL.UserModel(username='chair2')],
 					  ACL.root_access_level)
-		ACL.Users.add([ACL.UserModel(username='manager1'), ACL.UserModel(username='manager2')],
-					  ACL.AccessLevels.get(role_description='Project Manager'))
-		ACL.Users.add([ACL.UserModel(username='software-dev1'), ACL.UserModel(username='software-dev2'),
-					   ACL.UserModel(username='software-dev3'), ACL.UserModel(username='software-dev4')],
-					  ACL.AccessLevels.get(role_description='Software Developer'))
-		ACL.Users.add([ACL.UserModel(username='sd-intern1'), ACL.UserModel(username='sd-intern2'),
-					   ACL.UserModel(username='sd-intern3'), ACL.UserModel(username='sd-intern4'),
-					   ACL.UserModel(username='sd-intern5'), ACL.UserModel(username='sd-intern6')],
-					  ACL.AccessLevels.get(role_description='Software Developer Intern'))
-		ACL.Users.add([ACL.UserModel(username='network-admin1'), ACL.UserModel(username='network-admin2'),
-					   ACL.UserModel(username='network-admin3'), ACL.UserModel(username='network-admin4')],
-					  ACL.AccessLevels.get(role_description='Network Admin'))
-		ACL.Users.add([ACL.UserModel(username='na-intern1'), ACL.UserModel(username='na-intern2'),
-					   ACL.UserModel(username='na-intern3'), ACL.UserModel(username='na-intern4'),
-					   ACL.UserModel(username='na-intern5'), ACL.UserModel(username='na-intern6')],
-					  ACL.AccessLevels.get(role_description='Network Admin Intern'))
+
+		ACL.Users.add([ACL.UserModel(username='trads')],
+					  ACL.AccessLevels.get(role_description='Tradesman'))
+
+		ACL.Users.add([ACL.UserModel(username='tradsjun1'), ACL.UserModel(username='tradsjun2')],
+					  ACL.AccessLevels.get(role_description='Tradesman Junior'))
+
+		ACL.Users.add([ACL.UserModel(username='account')],
+					  ACL.AccessLevels.get(role_description='Accountant'))
+
+		ACL.Users.add([ACL.UserModel(username='accountjun')],
+					  ACL.AccessLevels.get(role_description='Accountant Junior'))
+
+		ACL.Users.add([ACL.UserModel(username='accountint')],
+					  ACL.AccessLevels.get(role_description='Accountant Intern'))
+
+		ACL.Users.add([ACL.UserModel(username='buyer')],
+					  ACL.AccessLevels.get(role_description='Buyer'))
+
+		ACL.Users.add([ACL.UserModel(username='storechief')],
+					  ACL.AccessLevels.get(role_description='Storehouse Chief'))
+
 
 	def tearDown(self):
 		self.session.close()
