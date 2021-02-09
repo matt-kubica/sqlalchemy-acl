@@ -39,6 +39,8 @@ def intercept_insert(conn, clauseelement, multiparams, params):
                 .filter(AccessLevelModel.users.contains(ACL.current_user)) \
                 .scalar()
 
+            # print(f'PRINTUJE {user_access_level}')
+
 
         try:
             # iterate over dictionaries with properties of objects

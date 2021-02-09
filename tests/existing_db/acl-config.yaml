@@ -1,0 +1,9 @@
+root:
+  description: "Chairman"
+  children:
+    -
+      description: "Accountant"
+      children: ~
+    -
+      description: "Tradesman"
+      children: ~

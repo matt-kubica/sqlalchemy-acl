@@ -8,56 +8,81 @@ from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy_acl.models import ACLEntryModel
+
+from sqlalchemy_acl import ACL
+from sqlalchemy_acl.models import AccessLevelModel, ACLEntryModel
+
 import csv
+import re
+
+"""
+def determine_dtypes(csv_reader):
+    dtypes_list = []
+    first_row = next(csv_reader)
+
+    for cell in first_row:
+        if re.search('^-?(\d)+$', cell):
+            print('INTEGER FOUND')
+            dtypes_list.append(lambda x: int(x))
+        elif re.search('^-?(\d)+.(\d)+$', cell):
+            print('FLOAT FOUND')
+            dtypes_list.append(lambda x: float(x))
+        else:
+            print('DATE OR STRING FOUND')
+"""
 
 Base = declarative_base()
 
-class ToyModel(Base):
-    __tablename__ = 'toy'
+def setup_database(db_path):
+	engine = create_engine(db_path, echo=False)
+	Session = sessionmaker(bind=engine)
+	session = Session()
+	Base.metadata.create_all(bind=engine)
+	return session, engine
 
-    id = Column(Integer, primary_key=True)
-    str = Column(String(16))
+class ParseYAMLSetupMixin:
 
-    def __repr__(self):
-        return f'<ToyModel(id = {self.id}, str = {self.str})>'
+    DB_PATH = 'db.sqlite'
+    WHOLE_DB_PATH = 'sqlite:///' + DB_PATH
+    ACL_CONFIG = 'acl-config.yaml'
 
-class ACLEntryModel(Base):
-    __tablename__ = 'acl_entry'
+    def setUp(self):
+    	self.session, self.engine = setup_database(ParseYAMLSetupMixin.WHOLE_DB_PATH)
+    	ACL.setup(self.engine, access_levels_config=ParseYAMLSetupMixin.ACL_CONFIG)
 
-    id = Column(Integer, primary_key=True)
-    dest_table = Column(String(64), nullable=False)
-    dest_id = Column(Integer, nullable=False)
+    	ACL.Users.add([ACL.UserModel(username='chair')], ACL.root_access_level)
+    	ACL.Users.add([ACL.UserModel(username='account')], ACL.AccessLevels.get(role_description='Accountant'))
+    	ACL.Users.add([ACL.UserModel(username='trads')], ACL.AccessLevels.get(role_description='Tradesman'))
 
-    def __repr__(self):
-        return '<ACLEntry {0} -> {1}:{2}>'.format(
-            self.id,
-            self.dest_table,
-            self.dest_id
-        )
+    def tearDown(self):
+    	self.session.close()
+    	os.remove(ParseYAMLSetupMixin.DB_PATH)
 
-engine = create_engine('sqlite:///toy.db')
-Base.metadata.create_all(engine)
-Session = sessionmaker()
-Session.configure(bind=engine)
-session = Session()
+    def getACLFromFiles(self):
+        filenames = os.listdir('.')
+        csv_files = [filename for filename in filenames if filename.endswith('.csv')]
 
-with open('toy_db.csv', 'r', encoding="utf-8") as csvfile:
-    csv_reader = csv.reader(csvfile, delimiter=';')
+        for f in csv_files:
+            with open(f, 'r', encoding='utf-8') as csvfile:
+                csv_reader = csv.reader(csvfile, delimiter=';')
+                tablename = f[:-4]
 
-    for row in csv_reader:
-        record = ToyModel(id=int(row[0]),str=row[1])
-        session.add(record)
-        session.add(ACLEntryModel(dest_table = 'toy', dest_id = int(row[0]))) # create an ACLEntryModel record
+                for row in csv_reader:
+                    access_levels_list = list(map(int, row[-1].split(',')))
+                    row_id = row[0]
 
-        acl_ids = list(map(int, row[2].split(','))) # read future acl indices and convert str to int
+                    for access_level in access_levels_list:
+                        user_access_level = ACL.inner_session.query(AccessLevelModel) \
+                            .filter(AccessLevelModel.id == access_level) \
+                            .scalar()
 
-        print('Do Association zostało by dodane:')
-        for id in acl_ids:
-            print(f'access_level_id = {id}, acl_entry_id = {int(row[0])}')
+                        # print(f'PRINTUJECSV {user_access_level}')
 
+                        entry = ACLEntryModel(dest_table=tablename, dest_id=row_id)
+                        entry.access_levels.append(user_access_level)
+                        ACL.inner_session.add(entry)
 
-session.commit()
-print(session.query(ACLEntryModel).all())
-print(session.query(ToyModel).all())
-os.remove('toy.db')
+main_obj = ParseYAMLSetupMixin()
+main_obj.setUp()
+main_obj.getACLFromFiles()
+main_obj.tearDown()
