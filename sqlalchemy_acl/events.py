@@ -1,6 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.dml import Insert, Delete
+from sqlalchemy.sql.schema import Table
 
 from .models import ACLEntryModel, UserModelMixin, AccessLevelModel
 
@@ -11,11 +12,11 @@ def intercept_select(conn, clauseelement, multiparams, params):
 
     # check if it's select statement
     if isinstance(clauseelement, Select):
-        # 'froms' represents list of tables that statement is querying, for now, let's assume there is only one table
-        table = clauseelement.froms[0]
+        # get all tables used in query, without repetitions
+        tables = list(set([elem for elem in clauseelement.locate_all_froms() if isinstance(elem, Table)]))
 
-        # adding filter in statement
-        clauseelement = clauseelement.where(table.c.id.in_(ACL.allowed_rows(str(table))))
+        # append new where clause based on tables used in query, as well as current user
+        clauseelement = ACL.create_where_clause(tables, clauseelement)
 
     # because retval flag in hook is set to True, we need to return this tuple of parameters, this is required
     # to apply additional filter

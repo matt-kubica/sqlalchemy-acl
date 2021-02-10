@@ -1,5 +1,7 @@
 from copy import copy
 
+from sqlalchemy.sql import ClauseElement
+
 from .exceptions import ACLModelNotValid, UserNotValid
 from .models import UserModelMixin, AccessLevelModel, ACLEntryModel
 from .utils import check_users_list, check_entries_list, check_access_levels_list
@@ -75,32 +77,34 @@ class ACL:
             cls.current_user = None
 
 
-
-    # creating list of available entries for requesting user accordingly to requested table
     @classmethod
-    def allowed_rows(cls, table):
+    def create_where_clause(cls, tables, clauseelement):
 
-        # if user is not specified, return empty list
+        # if user is not set
         if cls.current_user is None:
-            return []
+            return clauseelement.append_whereclause(False)
 
         # get access level associated with current user
         user_access_level = ACL.inner_session.query(AccessLevelModel) \
-                .filter(AccessLevelModel.users.contains(ACL.current_user)) \
-                .scalar()
+            .filter(AccessLevelModel.users.contains(ACL.current_user)) \
+            .scalar()
 
         # get all sub-access-levels
         user_sub_access_levels = AccessLevelsTree(user_access_level).subnodes_list()
 
         # return all entries of ACLModel accordingly to dest_table and user_sub_access_levels
-        filtered_entries = []
-        for acl in user_sub_access_levels:
-            filtered_entries += cls.inner_session.query(ACLEntryModel) \
-            .filter(ACLEntryModel.dest_table == table) \
-            .filter(ACLEntryModel.access_levels.contains(acl)) \
-            .all()
 
-        return [entry.dest_id for entry in filtered_entries]
+        for table in tables:
+            filtered_entries = []
+            for acl in user_sub_access_levels:
+                filtered_entries += cls.inner_session.query(ACLEntryModel) \
+                    .filter(ACLEntryModel.dest_table == str(table)) \
+                    .filter(ACLEntryModel.access_levels.contains(acl)) \
+                    .all()
+            allowed_rows = [entry.dest_id for entry in filtered_entries]
+            clauseelement.append_whereclause(table.c.id.in_(allowed_rows))
+
+        return clauseelement
 
 
     class Users:
