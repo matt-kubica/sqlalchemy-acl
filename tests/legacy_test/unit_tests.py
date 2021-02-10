@@ -82,6 +82,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertNotEqual(self.session.query(ExemplaryModel), other_level_objects)
 		ACL.unset_user()
 
+
 	def test_delete_object_with_select(self):
 		# objects associated with root access level
 		root_level_objects = [
@@ -106,6 +107,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(after_deletion, set(self.session.query(ExemplaryModel).all()))
 		ACL.unset_user()
 
+
 	def test_delete_object_without_select(self):
 		# objects associated with root access level
 		root_level_objects = [
@@ -125,6 +127,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		after_deletion = self.session.query(ExemplaryModel).filter(ExemplaryModel.id.in_([2,3,4]))
 		self.assertEqual(set(after_deletion), set(self.session.query(ExemplaryModel).all()))
 		ACL.unset_user()
+
 
 	# DELETE, użytkownik wyżej usuwa rekordy stworzone przez użytkownika niżej
 	def test_authorized_delete(self):
@@ -150,6 +153,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(self.session.query(ExemplaryModel).all(), low_level_objects[1:])
 		ACL.unset_user()
 
+
 	# WHERE
 	def test_filter(self):
 		root_level_objects = [
@@ -173,6 +177,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		ACL.set_user(ACL.Users.get(username='tradsjun2'))
 		self.assertEqual(self.session.query(ExemplaryModel).filter(ExemplaryModel.id > 2).all(), low_level_objects)
 		ACL.unset_user()
+
 
 	# JOIN na tabelach stworzonych przez użytkowników na tym samym poziomie
 	def test_same_lvl_join(self):
@@ -209,6 +214,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(result, join)
 		ACL.unset_user()
 
+
 	# JOIN z tabelą stworzoną przez użytkownika niżej
 	def test_low_lvl_join(self):
 		ACL.set_user(ACL.Users.get(username='account'))
@@ -239,6 +245,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(result, join)
 		ACL.unset_user()
 
+
 	# JOIN z tabelą stworzoną przez użytkownika wyżej
 	def test_high_lvl_join(self):
 		ACL.set_user(ACL.Users.get(username='account'))
@@ -265,6 +272,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		                        OrdersModel.id, OrdersModel.order_date).join(OrdersModel).all()
 		self.assertEqual(result, [])
 		ACL.unset_user()
+
 
 	# JOIN z tabelą stworzoną przez użytkownika wyżej, ale z dodanymi rekordami przez użytkownika niżej
 	def test_high_lvl_join(self):
@@ -297,6 +305,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(result, [(client, orders[4])])
 		ACL.unset_user()
 
+
 	# UPDATE na rekordzie o wyższym poziomie
 	def test_high_lvl_update(self):
 		ACL.set_user(ACL.Users.get(username='account'))
@@ -314,8 +323,9 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 
 		ACL.set_user(ACL.Users.get(username='account'))
 		result = self.session.query(CustomersModel).first()
-		self.assertEqual(result.name, 'Will Smith')
+		self.assertEqual(result.name, 'Smill With')
 		ACL.unset_user()
+
 
 	# UPDATE na rekordzie o niższym poziomie
 	def test_low_lvl_update(self):
@@ -336,6 +346,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(result.name, 'Smill With')
 		ACL.unset_user()
 
+
 	# UPDATE na rekordzie o tym samym poziomie, stworzonym przez innego użytkownika
 	def test_same_lvl_update(self):
 		ACL.set_user(ACL.Users.get(username='tradsjun1'))
@@ -354,6 +365,7 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		result = self.session.query(CustomersModel).first()
 		self.assertEqual(result.name, 'Smill With')
 		ACL.unset_user()
+
 
 	# COUNT na rekordach o wyższym poziomie
 	def test_high_lvl_aggr(self):
@@ -377,8 +389,9 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		ACL.unset_user()
 
 		ACL.set_user(ACL.Users.get(username='accountint'))
-		self.assertEqual(self.session.query(OrdersModel).count(), 2)
+		self.assertEqual(self.session.query(func.count(OrdersModel.id)).scalar(), 2)
 		ACL.unset_user()
+
 
 	# COUNT na rekordach o niższym poziomie
 	def test_low_lvl_aggr(self):
@@ -400,8 +413,9 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.session.add_all(orders)
 		self.session.commit()
 
-		self.assertEqual(self.session.query(OrdersModel).count(), 5)
+		self.assertEqual(self.session.query(func.count(OrdersModel.id)).scalar(), 5)
 		ACL.unset_user()
+
 
 	# COUNT na rekordach o tym samym poziomie
 	def test_same_lvl_aggr(self):
@@ -418,8 +432,9 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		ACL.unset_user()
 
 		ACL.set_user(ACL.Users.get(username='tradsjun2'))
-		self.assertEqual(self.session.query(OrdersModel).count(), 5)
+		self.assertEqual(self.session.query(func.count(OrdersModel.id)).scalar(), 5)
 		ACL.unset_user()
+
 
 	# GROUP BY na rekordach na wyższym poziomie
 	def test_high_lvl_groupby(self):
@@ -440,11 +455,14 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
 			OrdersModel(id=5, customer_id=2, order_date='08-28-1998')
 		]
+		self.session.add_all(orders)
+		self.session.commit()
 
 		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
 		            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
 		self.assertEqual(result, [])
 		ACL.unset_user()
+
 
 	# GROUP BY na rekordach na niższym poziomie
 	def test_low_lvl_groupby(self):
@@ -465,11 +483,15 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
 			OrdersModel(id=5, customer_id=2, order_date='08-28-1998')
 		]
+		self.session.add_all(orders)
+		self.session.commit()
 
-		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
-		            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
+		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)) \
+					.join(OrdersModel, CustomersModel.id == OrdersModel.customer_id) \
+					.group_by(CustomersModel.id).all()
 		self.assertEqual(result, [(1, 2), (2, 3)])
 		ACL.unset_user()
+
 
 	# GROUP By na rekordach na tym samym poziomie
 	def test_same_lvl_groupby(self):
@@ -490,11 +512,14 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 			OrdersModel(id=4, customer_id=2, order_date='08-15-1998'),
 			OrdersModel(id=5, customer_id=2, order_date='08-28-1998')
 		]
+		self.session.add_all(orders)
+		self.session.commit()
 
 		result = self.session.query(CustomersModel.id, func.count(CustomersModel.id)).join(OrdersModel,
 		            CustomersModel.id==OrdersModel.customer_id).group_by(CustomersModel.id).all()
 		self.assertEqual(result, [(1, 2), (2, 3)])
 		ACL.unset_user()
+
 
 ### DOCKER AND POSTGRES IMAGE REQUIRED ###
 # for more see notes above setup.PostgresSetupMixin class
