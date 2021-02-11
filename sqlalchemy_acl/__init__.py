@@ -107,6 +107,33 @@ class ACL:
         return clauseelement
 
 
+    # creating list of available entries for requesting user accordingly to requested table
+    @classmethod
+    def allowed_rows(cls, table):
+
+        # if user is not specified, return empty list
+        if cls.current_user is None:
+            return []
+
+            # get access level associated with current user
+        user_access_level = ACL.inner_session.query(AccessLevelModel) \
+            .filter(AccessLevelModel.users.contains(ACL.current_user)) \
+            .scalar()
+
+        # get all sub-access-levels
+        user_sub_access_levels = AccessLevelsTree(user_access_level).subnodes_list()
+
+        # return all entries of ACLModel accordingly to dest_table and user_sub_access_levels
+        filtered_entries = []
+        for acl in user_sub_access_levels:
+            filtered_entries += cls.inner_session.query(ACLEntryModel) \
+                .filter(ACLEntryModel.dest_table == table) \
+                .filter(ACLEntryModel.access_levels.contains(acl)) \
+                .all()
+
+        return [entry.dest_id for entry in filtered_entries]
+
+
     class Users:
 
         # add new user and attach it to given access_level

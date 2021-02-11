@@ -40,7 +40,6 @@ def intercept_insert(conn, clauseelement, multiparams, params):
                 .filter(AccessLevelModel.users.contains(ACL.current_user)) \
                 .scalar()
 
-
         try:
             # iterate over dictionaries with properties of objects
             for object_dict in multiparams[0]:
@@ -64,7 +63,7 @@ def intercept_delete(conn, clauseelement, multiparams, params):
     from . import ACL
 
     if isinstance(clauseelement, Delete):
-        # 'froms' represents list of tables that statement is querying, for now, let's assume there is only one table
+        # get tables present in statement
         table = clauseelement.table
 
         # adding filter in statement
