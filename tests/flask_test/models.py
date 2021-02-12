@@ -3,11 +3,12 @@ sys.path.insert(0,'../..')
 sys.path.insert(0,'..')
 
 from sqlalchemy_acl.models import UserModelMixin
+from sqlalchemy_acl import ACL
 
-from . import db
+from . import db, app
 
 class ExemplaryModel(db.Model):
-    __tablename__ = 'testable-models'
+    __tablename__ = 'testable_models'
 
     id = db.Column(db.Integer, primary_key=True)
     string_field = db.Column(db.String(64), unique=False, nullable=False)

@@ -37,6 +37,7 @@ def verify_token(token):
 @auth.route('/register', methods=['POST'])
 def register():
     try:
+        print("&&&&&&&& REQUEST JSON &&&&&&&&&&", str(request.json))
         # create new user, add to associated access-level
         user = CustomUserModel(username=request.json['username'], email=request.json['email'],
                                password_hash=hash(request.json['password']))
@@ -50,6 +51,7 @@ def register():
 
 @auth.route('/login', methods=['POST'])
 def login():
+    print('ZREQUESTOWANY JSON ------------------------', str(request.json))
     user = ACL.Users.get(username=request.json['username'],
                          password_hash=hash(request.json['password']))
     if not user: abort(401)
