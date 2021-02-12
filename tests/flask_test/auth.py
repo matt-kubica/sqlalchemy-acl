@@ -1,4 +1,4 @@
-from flask import Blueprint, request, abort, Response, json
+from flask import Blueprint, request, Response, json
 from flask_httpauth import HTTPTokenAuth
 from itsdangerous import TimedJSONWebSignatureSerializer as TokenSerializer
 from sqlalchemy.exc import IntegrityError
@@ -12,6 +12,7 @@ from .models import CustomUserModel
 auth = Blueprint('auth', __name__)
 token_serializer = TokenSerializer(app.config['SECRET_KEY'], expires_in=3600)
 http_auth = HTTPTokenAuth('Bearer')
+authorized_tokens = {}
 
 
 # helper function for creating token response
@@ -20,7 +21,9 @@ def create_token(request):
         'username': request.json['username'],
         'password_hash': hash(request.json['password']),
     }
+    # when token is generated it is also added to authorized_tokens dict
     token = token_serializer.dumps(credentials).decode('utf-8')
+    authorized_tokens[request.json['username']] = token
     return Response(json.dumps({'token': token}), 200, mimetype='application/json')
 
 
@@ -29,9 +32,19 @@ def create_token(request):
 @http_auth.verify_token
 def verify_token(token):
     try:
-        return token_serializer.loads(token)
+        # check out if given token is already saved to authorized tokens
+        if {token} & set(authorized_tokens.values()):
+            return token_serializer.loads(token)
+        else:
+            return False
     except:
         return False
+
+
+# custom error handler
+@http_auth.error_handler
+def error_handler(status):
+    return Response(json.dumps({'msg': 'unauthorized!'}), 401, mimetype='application/json')
 
 
 @auth.route('/register', methods=['POST'])
@@ -46,7 +59,7 @@ def register():
         return create_token(request)
     except IntegrityError:
         ACL.inner_session.rollback()
-        abort(400)
+        return Response(json.dumps({'msg': 'provided user already exist!'}), 400, mimetype='application/json')
 
 
 @auth.route('/login', methods=['POST'])
@@ -54,8 +67,22 @@ def login():
     print('ZREQUESTOWANY JSON ------------------------', str(request.json))
     user = ACL.Users.get(username=request.json['username'],
                          password_hash=hash(request.json['password']))
-    if not user: abort(401)
+    if not user: return Response(json.dumps({'msg': 'unauthorized!'}), 401, mimetype='application/json')
     return create_token(request)
+
+
+# logout endpoint - user need to provide token in order to log out
+@auth.route('/logout', methods=['POST'])
+@http_auth.login_required
+def logout():
+    # get token out of headers
+    token = request.headers['Authorization'].replace('Bearer ', '')
+    # get credentials based on token, remove token from authorized tokens
+    credentials = token_serializer.loads(token)
+    authorized_tokens.pop(credentials['username'])
+    return Response(json.dumps({'msg': 'logged out!'}), 200, mimetype='application/json')
+
+
 
 
 @auth.route('/hello', methods=['GET'])
