@@ -677,7 +677,6 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		self.assertEqual(query, [(2, 4)])
 		ACL.unset_user()
 
-
 ### DOCKER AND POSTGRES IMAGE REQUIRED ###
 # for more see notes above setup.PostgresSetupMixin class
 # if you want to skip this test case, simply comment it out (yes, there is probably better way of doing this ;) )
