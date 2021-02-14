@@ -15,6 +15,7 @@ pyyaml = "*"
 psycopg2-binary = "*"
 flask-httpauth = "*"
 itsdangerous = "*"
+sqlalchemy-utils = "*"
 
 [requires]
 python_version = "3.8"
