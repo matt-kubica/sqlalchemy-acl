@@ -1,0 +1,24 @@
+root:
+  description: "Chairman"
+  children:
+    -
+      description: "Tradesman"
+      children:
+        -
+          description: "Tradesman Junior"
+          children: ~
+    -
+      description: "Accountant"
+      children:
+        -
+          description: "Accountant Junior"
+          children:
+            -
+              description: "Accountant Intern"
+              children: ~
+    -
+      description: "Buyer"
+      children:
+        -
+          description: "Storehouse Chief"
+          children: ~
