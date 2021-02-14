@@ -98,7 +98,7 @@ html,
 }
 
 .table-wrapper {
-  background-color: darkgoldenrod;
+  background-color: #167bff;
   display: flex;
   position: fixed;
   top: 56px;
@@ -106,4 +106,12 @@ html,
 
 .list {
   list-style-type: none;
+  margin-left: 0px;
+  padding: 0%;
+}
+
+.list-title {
+  font: large;
+  font-size: 40px;
+  text-align: left;
 }

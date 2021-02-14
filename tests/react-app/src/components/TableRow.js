@@ -1,13 +1,9 @@
 import React from "react";
 
 const TableRow = ({ contents }) => {
-  return (
-    <li>
-      {contents.id + " "}
-      {contents.integer_field + " "}
-      {contents.string_field}
-    </li>
-  );
+  var fields = [];
+  Object.keys(contents).forEach((key) => fields.push(contents[key] + " | "));
+  return <li>{fields}</li>;
 };
 
 export default TableRow;
