@@ -6,10 +6,12 @@ const Table = ({ name, data }) => {
   Object.keys(data[0]).forEach((key) => keys.push(key + " | "));
   return (
     <ul className="list">
-      <li className="list-title">{name}</li>
-      <li> {keys}</li>
-      <li>
-        <ul>
+      <li key="Title" className="list-title">
+        {name}
+      </li>
+      <li key="Keys"> {keys}</li>
+      <li key="RowList">
+        <ul key="Rows">
           {data.map((row) => {
             return <TableRow key={row.id} contents={row} />;
           })}

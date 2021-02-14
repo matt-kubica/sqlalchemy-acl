@@ -75,8 +75,10 @@ def login():
 @auth.route('/logout', methods=['POST'])
 @http_auth.login_required
 def logout():
+    print("ENDPOINT LOGIN")
     # get token out of headers
     token = request.headers['Authorization'].replace('Bearer ', '')
+    print("Token: ", token)
     # get credentials based on token, remove token from authorized tokens
     credentials = token_serializer.loads(token)
     authorized_tokens.pop(credentials['username'])

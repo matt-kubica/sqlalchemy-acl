@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import Table from "./Table";
-import Button from "./Button";
-import { api } from "../services/api.js";
+import ActionWindow from "./ActionWindow";
 
 const TablePage = () => {
   const [data, setData] = useState([]);
@@ -9,28 +8,9 @@ const TablePage = () => {
   if (data.length === 0) {
     return (
       <div className="auth-wrapper">
-        <Button label="Get available rows" onClick={handleClick} />
+        <ActionWindow setData={setData} />
       </div>
     );
-  }
-
-  function handleClick() {
-    setData([{ att1: "value" }]);
-    api
-      .get("/exemplary-object", {
-        headers: {
-          Authorization:
-            "Bearer " + JSON.parse(sessionStorage.getItem("token")).token,
-        },
-      })
-      .then((res) => {
-        if (res.data.length === 0) {
-          window.alert(
-            "The table you wanted to fetch is either empty, or you don't have access to any of its rows"
-          );
-        }
-        setData(res.data);
-      });
   }
 
   return (
