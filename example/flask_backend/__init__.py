@@ -39,12 +39,12 @@ def register_blueprints(app):
 
 def register_endpoints(app):
     from .api import SalariesAPI, CustomersAPI, OrdersAPI, ArticlesAPI, BoxesAPI, ContentsAPI
-    app.register_api(SalariesAPI, 'salaries_api', '/salaries/')
-    app.register_api(CustomersAPI, 'customers_api', '/customers/')
-    app.register_api(OrdersAPI, 'orders_api', '/orders/')
-    app.register_api(ArticlesAPI, 'articles_api', '/articles/')
-    app.register_api(BoxesAPI, 'boxes_api', '/boxes/')
-    app.register_api(ContentsAPI, 'contents_api', '/contents/')
+    app.register_api(SalariesAPI, 'salaries_api', '/salaries')
+    app.register_api(CustomersAPI, 'customers_api', '/customers')
+    app.register_api(OrdersAPI, 'orders_api', '/orders')
+    app.register_api(ArticlesAPI, 'articles_api', '/articles')
+    app.register_api(BoxesAPI, 'boxes_api', '/boxes')
+    app.register_api(ContentsAPI, 'contents_api', '/contents')
 
 def setup_acl(engine):
     from sqlalchemy_acl import ACL
