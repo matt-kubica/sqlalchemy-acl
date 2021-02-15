@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from "react";
 
 const SalariesForm = ({ handleAddition, setBody }) => {
+  const [id, setId] = useState(0);
   const [name, setName] = useState("");
   const [salary, setSalary] = useState("");
 
   useEffect(() => {
-    setBody(JSON.stringify({ name, salary }));
+    setBody(JSON.stringify({ id, name, salary }));
   });
 
   return (
     <form>
+      <div className="form-group">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="ID"
+          onChange={(e) => setId(e.target.value)}
+        />
+      </div>
       <div className="form-group">
         <input
           type="text"

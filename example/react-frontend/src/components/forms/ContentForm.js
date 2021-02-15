@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from "react";
 
 const ContentForm = ({ handleAddition, setBody }) => {
+  const [id, setId] = useState(0);
   const [box_id, setBoxId] = useState(0);
   const [chocolate_name, setChocName] = useState("");
   const [quantity, setQuantity] = useState(0);
 
   useEffect(() => {
-    setBody(JSON.stringify({ box_id, chocolate_name, quantity }));
+    setBody(JSON.stringify({ id, box_id, chocolate_name, quantity }));
   });
 
   return (
     <form>
+      <div className="form-group">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="ID"
+          onChange={(e) => setId(e.target.value)}
+        />
+      </div>
       <div className="form-group">
         <input
           type="text"

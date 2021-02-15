@@ -4,18 +4,22 @@ import ActionWindow from "./ActionWindow";
 
 const TablePage = () => {
   const [data, setData] = useState([]);
+  const [tablename, setTableName] = useState("");
 
   if (data.length === 0) {
     return (
       <div className="auth-wrapper">
-        <ActionWindow setData={setData} />
+        <ActionWindow setData={setData} setTableName={setTableName} />
       </div>
     );
   }
 
   return (
     <div className="table-wrapper">
-      <Table name={"Mati"} data={data} />
+      <Table
+        name={tablename.charAt(1).toUpperCase() + tablename.slice(2)}
+        data={data}
+      />
     </div>
   );
 };

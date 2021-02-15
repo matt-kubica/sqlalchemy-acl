@@ -4,9 +4,9 @@ import SelectTable from "./SelectTable";
 import FormController from "../components/forms/FormController";
 import { api } from "../services/api.js";
 
-const ActionWindow = ({ setData }) => {
-  const [from_table, setFromTable] = useState("/exemplary-object");
-  const [to_table, setToTable] = useState("/exemplary-object");
+const ActionWindow = ({ setData, setTableName }) => {
+  const [from_table, setFromTable] = useState("/contents");
+  const [to_table, setToTable] = useState("/contents");
   const [body, setBody] = useState([]);
 
   function handleRequest() {
@@ -42,10 +42,9 @@ const ActionWindow = ({ setData }) => {
 
   return (
     <div className="auth-inner">
-      {body}
-      <SelectTable setTable={setFromTable} />
+      <SelectTable setTable={setFromTable} setTableName={setTableName} />
       <Button label="Get available rows" onClick={handleRequest} />
-      <SelectTable setTable={setToTable} />
+      <SelectTable setTable={setToTable} setTableName={setTableName} />
       <FormController
         to_table={to_table}
         setBody={setBody}

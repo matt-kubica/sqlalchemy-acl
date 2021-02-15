@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from "react";
 
 const ArticlesForm = ({ handleAddition, setBody }) => {
+  const [id, setId] = useState(0);
   const [order_id, setOrder] = useState("");
   const [box_id, setBox] = useState("");
   const [quantity, setQuantity] = useState("");
 
   useEffect(() => {
-    setBody(JSON.stringify({ order_id, box_id, quantity }));
+    setBody(JSON.stringify({ id, order_id, box_id, quantity }));
   });
 
   return (
     <form>
+      <div className="form-group">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="ID"
+          onChange={(e) => setId(e.target.value)}
+        />
+      </div>
       <div className="form-group">
         <input
           type="text"

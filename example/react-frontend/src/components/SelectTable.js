@@ -1,12 +1,14 @@
 import React from "react";
 
-const SelectTable = ({ setTable }) => {
+const SelectTable = ({ setTable, setTableName }) => {
   return (
     <select
       className="width custom-select"
-      onChange={(e) => setTable(e.target.value)}
+      onChange={(e) => {
+        setTable(e.target.value);
+        setTableName(e.target.value);
+      }}
     >
-      <option value="/exemplary-object">Exemplary</option>
       <option value="/contents">Contents</option>
       <option value="/boxes">Boxes</option>
       <option value="/articles">Articles</option>
