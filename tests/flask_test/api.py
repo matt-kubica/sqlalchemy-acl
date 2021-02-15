@@ -34,6 +34,7 @@ def get_object(id):
 @http_auth.login_required
 @validate_request
 def post_object():
+    print(request.json)
     try:
         object = ExemplaryModel(
             request.json['id'], request.json['string_field'], request.json['integer_field']

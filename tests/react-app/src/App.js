@@ -12,14 +12,10 @@ import TablePage from "./components/TablePage";
 import Home from "./components/Home";
 import useToken from "./services/useToken";
 import Signup from "./components/Signup";
+import { api } from "./services/api";
 
 function App() {
   const { token, setToken } = useToken();
-
-  function Logout() {
-    setToken("");
-    <Redirect to="/" />;
-  }
 
   if (!token) {
     return (
@@ -39,6 +35,24 @@ function App() {
         </div>
       </Router>
     );
+  }
+
+  function Logout() {
+    api
+      .post(
+        "/logout",
+        {},
+        {
+          headers: {
+            Authorization:
+              "Bearer " + JSON.parse(sessionStorage.getItem("token")).token,
+          },
+        }
+      )
+      .then((res) => console.log(res))
+      .catch((error) => console.log(error));
+    setToken("");
+    <Redirect to="/" />;
   }
 
   return (
