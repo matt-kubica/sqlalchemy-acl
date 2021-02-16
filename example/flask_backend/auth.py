@@ -1,3 +1,4 @@
+import os, hashlib, binascii
 from flask import Blueprint, request, Response, json
 from flask_httpauth import HTTPTokenAuth
 from itsdangerous import TimedJSONWebSignatureSerializer as TokenSerializer
@@ -15,11 +16,26 @@ http_auth = HTTPTokenAuth('Bearer')
 authorized_tokens = {}
 
 
+
+def hash_password(password):
+    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
+    hash = binascii.hexlify(hashlib.pbkdf2_hmac('sha512', password.encode('utf-8'), salt, 100000))
+    return (salt + hash).decode('ascii')
+
+
+def verify_password(stored, provided):
+    stored_salt = stored[:64]
+    stored_hash = stored[64:]
+    hash = hashlib.pbkdf2_hmac('sha512', provided.encode('utf-8'), stored_salt.encode('ascii'), 100000)
+    hash = binascii.hexlify(hash).decode('ascii')
+    return stored_hash == hash
+
+
 # helper function for creating token response
-def create_token(request):
+def create_token(request, hash):
     credentials = {
         'username': request.json['username'],
-        'password_hash': hash(request.json['password']),
+        'password_hash': hash,
     }
     # when token is generated it is also added to authorized_tokens dict
     token = token_serializer.dumps(credentials).decode('utf-8')
@@ -50,12 +66,13 @@ def error_handler(status):
 @auth.route('/register', methods=['POST'])
 def register():
     try:
+        password_hash = hash_password(request.json['password'])
         # create new user, add to associated access-level
         user = UserModel(username=request.json['username'], email=request.json['email'],
-                               password_hash=hash(request.json['password']))
+                         password_hash=password_hash)
         access_level = ACL.AccessLevels.get(role_description=request.json['access_level'])
         ACL.Users.add([user], access_level)
-        return create_token(request)
+        return create_token(request, password_hash)
     except IntegrityError:
         ACL.inner_session.rollback()
         return Response(json.dumps({'msg': 'provided user already exist!'}), 400, mimetype='application/json')
@@ -63,10 +80,15 @@ def register():
 
 @auth.route('/login', methods=['POST'])
 def login():
-    user = ACL.Users.get(username=request.json['username'],
-                         password_hash=hash(request.json['password']))
-    if not user: return Response(json.dumps({'msg': 'unauthorized!'}), 401, mimetype='application/json')
-    return create_token(request)
+    user = ACL.Users.get(username=request.json['username'])
+    if user is None:
+        return Response(json.dumps({'msg': 'bad request!'}), 400, mimetype='application/json')
+
+    if verify_password(user.password_hash, request.json['password']):
+        return create_token(request, user.password_hash)
+    else:
+        return Response(json.dumps({'msg': 'unauthorized!'}), 401, mimetype='application/json')
+
 
 
 # logout endpoint - user need to provide token in order to log out
