@@ -13,7 +13,7 @@ class Flask(BaseFlask):
         view_func = view.as_view(endpoint)
         self.add_url_rule(url, defaults={pk: None}, view_func=view_func, methods=['GET'])
         self.add_url_rule(url, view_func=view_func, methods=['POST'])
-        self.add_url_rule('{0}<{1}:{2}>'.format(url, pk_type, pk), view_func=view_func,
+        self.add_url_rule('{0}/<{1}:{2}>'.format(url, pk_type, pk), view_func=view_func,
                           methods=['GET', 'PUT', 'DELETE'])
 
 
