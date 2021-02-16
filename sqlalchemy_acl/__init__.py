@@ -49,13 +49,18 @@ class ACL:
             raise ACLModelNotValid
 
         # access-levels config
-        # parse yaml config file or create default root access-level
-        if access_levels_config:
-            access_levels = AccessLevelsParser(access_levels_config).get_access_levels()
-            cls.root_access_level = access_levels[0]
+        # if access-levels haven't existed yet, create new
+        # parse yaml config file if present or create default root access-level
+        previous_access_levels = cls.inner_session.query(AccessLevelModel).all()
+        if len(previous_access_levels) == 0:
+            if access_levels_config:
+                access_levels = AccessLevelsParser(access_levels_config).get_access_levels()
+                cls.root_access_level = access_levels[0]
+            else:
+                cls.root_access_level = AccessLevelModel(role_description='root')
+            ACL.AccessLevels.add([cls.root_access_level])
         else:
-            cls.root_access_level = AccessLevelModel(role_description='root')
-        ACL.AccessLevels.add([cls.root_access_level])
+            cls.root_access_level = previous_access_levels[0]
 
         # attach events
         event.listen(cls.client_engine, 'before_execute', intercept_select, retval=True)
