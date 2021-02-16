@@ -15,6 +15,7 @@ pyyaml = "*"
 psycopg2-binary = "*"
 flask-httpauth = "*"
 itsdangerous = "*"
+flask-cors = "*"
 sqlalchemy-utils = "*"
 
 [requires]
