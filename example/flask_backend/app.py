@@ -13,9 +13,4 @@ if not database_exists(engine.url):
 else:
     print(' * Database already exist...')
 
-    # for now
-    drop_database(engine.url)
-    db.create_all(app=app)
-    create_database(engine.url)
-
 setup_acl(engine=db.get_engine(app))
