@@ -22,6 +22,8 @@ from random import randrange
 class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 
 	def test_get_users(self):
+		print(ACL.AccessLevels.get())
+
 		# get all available users, for this setup case
 		users = ACL.Users.get()
 		self.assertIsInstance(users, list)
