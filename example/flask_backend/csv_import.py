@@ -49,7 +49,7 @@ def import_from_csv(session):
                 session.commit()
 
                 entry = ACL.inner_session.query(ACLEntryModel) \
-                                         .filter(ACLEntryModel.dest_id == object_id and ACLEntryModel.dest_table == tablename) \
+                                         .filter(ACLEntryModel.dest_id == object_id, ACLEntryModel.dest_table == tablename) \
                                          .all()[0]
                 entry.access_levels.extend(ACL.inner_session.query(AccessLevelModel)
                                            .filter(AccessLevelModel.id.in_(access_levels)).all())
