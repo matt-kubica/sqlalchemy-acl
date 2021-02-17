@@ -6,7 +6,7 @@ from .exceptions import ACLModelNotValid, UserNotValid
 from .models import UserModelMixin, AccessLevelModel, ACLEntryModel
 from .utils import check_users_list, check_entries_list, check_access_levels_list
 from .base import DeclarativeBase
-from .events import intercept_insert, intercept_select, intercept_delete
+from .events import intercept_insert, intercept_select, intercept_delete, intercept_statement
 from .collections import AccessLevelsTree, AccessLevelsParser
 
 from sqlalchemy import event
@@ -66,6 +66,7 @@ class ACL:
         event.listen(cls.client_engine, 'before_execute', intercept_select, retval=True)
         event.listen(cls.client_engine, 'before_execute', intercept_insert, retval=True)
         event.listen(cls.client_engine, 'before_execute', intercept_delete, retval=True)
+        event.listen(cls.client_engine, 'before_cursor_execute', intercept_statement)
 
 
     @classmethod

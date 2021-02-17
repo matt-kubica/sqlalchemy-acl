@@ -77,3 +77,7 @@ def intercept_delete(conn, clauseelement, multiparams, params):
             ACL.inner_session.commit()
 
     return clauseelement, multiparams, params
+
+
+def intercept_statement(conn, cursor, statement, parameters, context, executemany):
+    print(' * Intercepted statement: \n   {0}\n   {1}'.format(statement, parameters))
