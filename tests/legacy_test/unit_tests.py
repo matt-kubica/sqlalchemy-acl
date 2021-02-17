@@ -1,18 +1,9 @@
-# Problemy:
-# nie działa wszystko, co potrzebuje JOINa (o ile dobrze rozumiem, to jest problem ze sprawdzaniem acl dla wielu tabel);
-# przy update ACL nie ma znaczenia, a chyba powinno mieć
-
-# Trzeba dołożyć:
-# czytanie ACL z pliku (żeby móc używać w ramach już istniejącej bazy);
-# możliwość przyznania dostępu wybranym użytkownikom niżej w hierarchii
-# (np. żeby księgowa mogła ustalić, że rekordy, które dodaje są również widoczne dla stażystki)
-
 import sys, unittest
 sys.path.insert(0,'../..')
 sys.path.insert(1,'..')
 
 from legacy_test.setup import DefaultSetupMixin, ParseYAMLSetupMixin, PostgresSetupMixin
-from legacy_test.models import ExemplaryModel, CustomersModel, OrdersModel
+from legacy_test.models import ExemplaryModel, CustomersModel, OrdersModel, ArticlesModel
 from sqlalchemy_acl import ACL
 from sqlalchemy import func
 
@@ -22,7 +13,7 @@ from random import randrange
 class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 
 	def test_get_users(self):
-		print(ACL.AccessLevels.get())
+		# print(ACL.AccessLevels.get())
 
 		# get all available users, for this setup case
 		users = ACL.Users.get()
@@ -677,6 +668,72 @@ class StandardQueriesTestCase(ParseYAMLSetupMixin, unittest.TestCase):
 		query = self.session.query(OrdersModel.customer_id, func.count(OrdersModel.customer_id)).\
 		                group_by(OrdersModel.customer_id).having(func.count(OrdersModel.customer_id) > 2).all()
 		self.assertEqual(query, [(2, 4)])
+		ACL.unset_user()
+
+	# podwójny JOIN - sprawdzamy średnią liczbę zamówionych pudełek przez danego klienta
+	def test_join2(self):
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		customers = [
+			CustomersModel(id=1, name='Will Smith', phone_number='111-222-333'),
+			CustomersModel(id=2, name='Tom Hanks', phone_number='999-888-777')
+		]
+		orders = [
+			OrdersModel(id=1, customer_id=1, order_date='2021-01-01'),
+			OrdersModel(id=2, customer_id=2, order_date='2021-01-01'),
+			OrdersModel(id=3, customer_id=1, order_date='2021-01-01')
+		]
+		articles = [
+			ArticlesModel(id=1, order_id=1, box_id=1, quantity=10),
+			ArticlesModel(id=2, order_id=1, box_id=4, quantity=5),
+			ArticlesModel(id=3, order_id=2, box_id=2, quantity=20),
+			ArticlesModel(id=4, order_id=3, box_id=2, quantity=12),
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		self.session.add_all(orders)
+		self.session.commit()
+		self.session.add_all(articles)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='trads'))
+		customers = [
+			CustomersModel(id=3, name='Mel Gibson', phone_number='444-555-666')
+		]
+		orders = [
+			OrdersModel(id=4, customer_id=3, order_date='2021-01-01'),
+			OrdersModel(id=5, customer_id=3, order_date='2021-01-01'),
+			OrdersModel(id=6, customer_id=3, order_date='2021-01-01'),
+			OrdersModel(id=7, customer_id=2, order_date='2021-01-01')
+		]
+		articles = [
+			ArticlesModel(id=5, order_id=4, box_id=1, quantity=10),
+			ArticlesModel(id=6, order_id=5, box_id=4, quantity=5),
+			ArticlesModel(id=7, order_id=6, box_id=2, quantity=15),
+			ArticlesModel(id=8, order_id=7, box_id=2, quantity=100),
+		]
+		self.session.add_all(customers)
+		self.session.commit()
+		self.session.add_all(orders)
+		self.session.commit()
+		self.session.add_all(articles)
+		self.session.commit()
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='tradsjun1'))
+		result = self.session.query(CustomersModel.name, func.avg(ArticlesModel.quantity)).\
+            join(OrdersModel, CustomersModel.id == OrdersModel.customer_id).\
+            join(ArticlesModel, OrdersModel.id == ArticlesModel.order_id).\
+            group_by(CustomersModel.id).all()
+		self.assertEqual(result, [('Will Smith', 9), ('Tom Hanks', 20)])
+		ACL.unset_user()
+
+		ACL.set_user(ACL.Users.get(username='trads'))
+		result = self.session.query(CustomersModel.name, func.avg(ArticlesModel.quantity)).\
+            join(OrdersModel, CustomersModel.id == OrdersModel.customer_id).\
+            join(ArticlesModel, OrdersModel.id == ArticlesModel.order_id).\
+            group_by(CustomersModel.id).all()
+		self.assertEqual(result, [('Will Smith', 9), ('Tom Hanks', 60), ('Mel Gibson', 10)])
 		ACL.unset_user()
 
 ### DOCKER AND POSTGRES IMAGE REQUIRED ###
